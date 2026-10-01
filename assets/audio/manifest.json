@@ -1,0 +1,341 @@
+{
+  "title": {
+    "label": "大聖堂に鳴り響く鐘",
+    "kind": "bgm",
+    "loop": true,
+    "file": "title.mp3",
+    "producer": "Licensed music / びーみゅ",
+    "crossfade": 2
+  },
+  "battle": {
+    "label": "クラシカルゴシックバトル",
+    "kind": "bgm",
+    "loop": true,
+    "file": "battle.mp3",
+    "producer": "Licensed music / びーみゅ",
+    "crossfade": 2
+  },
+  "boss": {
+    "label": "バフォメット召喚",
+    "kind": "bgm",
+    "loop": true,
+    "file": "boss.mp3",
+    "producer": "Licensed music / びーみゅ",
+    "crossfade": 2
+  },
+  "victory": {
+    "label": "カラドリウスと宝石箱",
+    "kind": "bgm",
+    "loop": false,
+    "file": "victory.mp3",
+    "producer": "Licensed music / びーみゅ",
+    "crossfade": 2
+  },
+  "defeat": {
+    "label": "魔女のレクイエム",
+    "kind": "bgm",
+    "loop": false,
+    "file": "defeat.mp3",
+    "producer": "Licensed music / びーみゅ",
+    "crossfade": 2
+  },
+  "ui": {
+    "label": "操作決定",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.24,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "start": {
+    "label": "出撃",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 1.5,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "lock": {
+    "label": "ターゲット切替",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.22,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "shot": {
+    "label": "光弾",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.19,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "spear": {
+    "label": "聖槍発射",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 1.15,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "spear-hit": {
+    "label": "聖槍着弾",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 1.65,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "ready": {
+    "label": "聖槍再使用可能",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.65,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "hit": {
+    "label": "光弾命中",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.3,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "damage": {
+    "label": "プレイヤー被弾",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.5,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "imp-down": {
+    "label": "小悪魔撃破",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.75,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "captain-down": {
+    "label": "中悪魔撃破 / ガスン！",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 1.1,
+    "producer": "GameSynth layer + original impact synthesis"
+  },
+  "boss-down": {
+    "label": "大悪魔撃破",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 2.8,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "wave": {
+    "label": "次の編隊",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.9,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "boss-arrival": {
+    "label": "大悪魔出現",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 2.2,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "charge": {
+    "label": "敵チャージ予兆",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 1.15,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "aimed": {
+    "label": "敵狙撃弾",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.35,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "vertical": {
+    "label": "縦弾幕発射",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.6,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "horizontal": {
+    "label": "横弾幕発射",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.6,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "dash": {
+    "label": "緊急回避",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.42,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "turn": {
+    "label": "インメルマンターン",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 1.35,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "barrier": {
+    "label": "バリア展開",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 1.3,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "reflect": {
+    "label": "バリア反射",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.38,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "barrier-end": {
+    "label": "バリア終了",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.6,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "rush": {
+    "label": "バリア突撃",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 1.4,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "stagger": {
+    "label": "突撃命中・怯み",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.65,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "warning": {
+    "label": "低体力・残り時間警告",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.45,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "wind": {
+    "label": "飛行風",
+    "kind": "sfx",
+    "loop": true,
+    "seconds": 4,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "wing": {
+    "label": "羽ばたき",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.36,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "natto": {
+    "label": "納豆ミサイル発射",
+    "kind": "sfx",
+    "loop": false,
+    "seconds": 0.32,
+    "producer": "GameSynth 2023.1.2.0"
+  },
+  "voice-start": {
+    "kind": "voice",
+    "file": "voice/voice-start.mp3",
+    "label": "出撃：天使ちゃん、出撃します！",
+    "text": "天使ちゃん、出撃します！",
+    "producer": "ElevenLabs",
+    "voice": "Pipi - Cute & Anime"
+  },
+  "voice-shot": {
+    "kind": "voice",
+    "file": "voice/voice-shot.mp3",
+    "label": "通常攻撃：えいっ！",
+    "text": "えいっ！",
+    "producer": "ElevenLabs",
+    "voice": "Pipi - Cute & Anime"
+  },
+  "voice-spear": {
+    "kind": "voice",
+    "file": "voice/voice-spear.mp3",
+    "label": "聖槍：聖なる槍よ、貫いて！",
+    "text": "聖なる槍よ、貫いて！",
+    "producer": "ElevenLabs",
+    "voice": "Pipi - Cute & Anime"
+  },
+  "voice-dash": {
+    "kind": "voice",
+    "file": "voice/voice-dash.mp3",
+    "label": "緊急回避：ひらりっ！",
+    "text": "ひらりっ！",
+    "producer": "ElevenLabs",
+    "voice": "Pipi - Cute & Anime"
+  },
+  "voice-turn": {
+    "kind": "voice",
+    "file": "voice/voice-turn.mp3",
+    "label": "反転：くるっと、反転！",
+    "text": "くるっと、反転！",
+    "producer": "ElevenLabs",
+    "voice": "Pipi - Cute & Anime"
+  },
+  "voice-rush": {
+    "kind": "voice",
+    "file": "voice/voice-rush.mp3",
+    "label": "突撃：いっくよー！",
+    "text": "いっくよー！",
+    "producer": "ElevenLabs",
+    "voice": "Pipi - Cute & Anime"
+  },
+  "voice-damage": {
+    "kind": "voice",
+    "file": "voice/voice-damage.mp3",
+    "label": "被弾：きゃっ！",
+    "text": "きゃっ！",
+    "producer": "ElevenLabs",
+    "voice": "Pipi - Cute & Anime"
+  },
+  "voice-boss": {
+    "kind": "voice",
+    "file": "voice/voice-boss.mp3",
+    "label": "大悪魔出現：大きな悪魔……でも、負けない！",
+    "text": "大きな悪魔……でも、負けない！",
+    "producer": "ElevenLabs",
+    "voice": "Pipi - Cute & Anime"
+  },
+  "voice-victory": {
+    "kind": "voice",
+    "file": "voice/voice-victory.mp3",
+    "label": "勝利：やったぁ！　空を守れたね！",
+    "text": "やったぁ！　空を守れたね！",
+    "producer": "ElevenLabs",
+    "voice": "Pipi - Cute & Anime"
+  },
+  "voice-defeat": {
+    "kind": "voice",
+    "file": "voice/voice-defeat.mp3",
+    "label": "敗北：ごめんね……もう一度、飛びたいな。",
+    "text": "ごめんね……もう一度、飛びたいな。",
+    "producer": "ElevenLabs",
+    "voice": "Pipi - Cute & Anime"
+  },
+  "voice-timeout": {
+    "kind": "voice",
+    "file": "voice/voice-timeout.mp3",
+    "label": "時間切れ：時間だね。また一緒に飛ぼう！",
+    "text": "時間だね。また一緒に飛ぼう！",
+    "producer": "ElevenLabs",
+    "voice": "Pipi - Cute & Anime"
+  },
+  "voice-captain": {
+    "kind": "voice",
+    "file": "voice/voice-captain.mp3",
+    "label": "中悪魔撃破：シャオラー！",
+    "text": "シャオラー！",
+    "producer": "ElevenLabs",
+    "voice": "Pipi - Cute & Anime"
+  }
+}

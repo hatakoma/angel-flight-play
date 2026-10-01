@@ -1,0 +1,59 @@
+/* Critical information groups around the flight view, leaving the aim point clear. */
+.pilot{left:calc(50% - 410px);bottom:135px;width:327px;padding:12px 16px;background:linear-gradient(90deg,#102033cc,#10203344);border-left:2px solid #a9f8df66}
+.pilot .eyebrow{font-size:16.5px;letter-spacing:2px}.pilot h3{font-size:30px;margin:7px 0 12px}.pilot h3 small{font-size:15px}
+.pilot .player-health{height:21px}.pilot .mission-line{font-size:16.5px}.pilot .mission-line strong{font-size:30px}
+.radar{left:calc(50% + 160px);right:auto;bottom:90px;width:231px}.radar canvas{width:231px;height:231px}.radar small{font-size:12px}
+.mission{left:50%;top:86px;transform:translateX(-50%);width:470px;display:flex;gap:30px;justify-content:center}
+.mission>.eyebrow,.mission>h2,.mission>p{display:none}.mission-line{white-space:nowrap}.mission>.mission-line{gap:16px;font-size:16.5px}.mission>.mission-line strong{font-size:30px}
+.heading{top:142px}.wave{left:50%;top:190px;transform:translateX(-50%);font-size:17px}.boss-hud{top:216px;left:32%;width:36%}
+.comms{bottom:70px;width:580px}.weapons{right:26px;top:105px}.maneuvers{right:26px;top:198px;width:230px}
+.enemy-health{position:absolute;width:48px;height:5px;bottom:-10px;left:50%;transform:translateX(-50%);background:#251b32dd;border:1px solid #f6c1c666;box-shadow:0 1px 4px #000}
+.enemy-health i{display:block;width:100%;height:100%;background:#f1a8c6;transition:width .12s}.leader .enemy-health i{background:#ffe09b}.marker small{bottom:-25px;text-shadow:0 1px 4px #000}
+.edge-arrow{display:none}.marker.offscreen{border:0!important;box-shadow:none;width:34px;height:34px;color:#f2aabe}
+.marker.offscreen .edge-arrow{display:block;font:700 34px/34px sans-serif;text-align:center;filter:drop-shadow(0 1px 4px #000)}
+.marker.offscreen span,.marker.offscreen .enemy-health{display:none}.marker.offscreen small{font-size:11px;left:50%;transform:translateX(-50%);bottom:-14px}
+.marker.offscreen.locked{color:#ffe69a;filter:drop-shadow(0 0 5px #f4ce7b)}
+.spear-charge{position:absolute;transform:translate(-50%,-50%);width:76px;text-align:center;color:#ffe6aa;filter:drop-shadow(0 2px 5px #142134)}
+.charge-disc{width:72px;height:72px;border-radius:50%;background:conic-gradient(from -90deg,#ecd099 var(--charge,100%),#19233acd 0);border:1px solid #ffe6ad99;display:grid;place-items:center}
+.charge-disc b{display:grid;place-items:center;background:#101d30e8;border:1px solid #fce1a855;border-radius:50%;width:46px;height:46px;font-size:13px;letter-spacing:.5px}.spear-charge small{display:block;margin-top:6px;font-size:12px}.spear-charge.ready .charge-disc{box-shadow:0 0 14px #ffe5a438}
+@media(max-width:1000px){.pilot{left:calc(50% - 340px);width:280px;bottom:120px}.radar{left:calc(50% + 120px);bottom:100px}.weapons{display:none}.maneuvers{top:90px;right:15px;width:165px;font-size:8px}.mission{width:380px;gap:18px}.mission>.mission-line{font-size:13px;gap:10px}.mission>.mission-line strong{font-size:26px}.boss-hud{left:29%;width:42%}}
+@media(max-width:700px){.pilot{left:18px;bottom:90px;width:225px;padding:8px}.pilot h3{font-size:25px}.pilot h3 small{display:none}.pilot .eyebrow{font-size:12px}.pilot .mission-line strong{font-size:25px}.radar{left:auto;right:15px;bottom:86px;width:165px}.radar canvas{width:165px;height:165px}.radar small{font-size:9px}.maneuvers{display:none}.mission{top:68px;width:90%}.heading{top:120px}.wave{top:164px;font-size:13px}.boss-hud{top:191px;left:22%;width:56%}.comms{bottom:52px;width:90%;font-size:10px}.telemetry.speed{left:20px}.telemetry.altitude{right:20px}.spear-charge{width:62px}.charge-disc{width:60px;height:60px}.charge-disc b{width:40px;height:40px;font-size:11px}}
+@media(max-height:640px) and (min-width:701px){.mission{top:61px}.heading{top:111px}.wave{top:153px}.boss-hud{top:182px}.pilot{bottom:86px}.radar{bottom:65px}.comms{bottom:44px}}
+
+/* A quieter, more distributed HUD: 80% of the previous status size. */
+.pilot{left:8vw;bottom:115px;transform:scale(.8);transform-origin:left bottom;background:linear-gradient(90deg,#10203388,#10203318)}
+.radar{left:auto;right:calc(8vw + 40px);bottom:105px;transform:scale(.8);transform-origin:right bottom}
+.mission{left:24%;top:99px;transform:translateX(-50%) scale(.8);transform-origin:center top}
+.wave{left:24%;top:151px;transform:translateX(-50%) scale(.8)}
+.heading{top:102px;transform:translateX(-50%) scale(.8)}
+.boss-hud{top:183px;transform:scale(.8);transform-origin:center top}
+.telemetry{transform:scale(.8);transform-origin:center center}.telemetry.speed{left:calc(50% - 310px)}.telemetry.altitude{right:calc(50% - 310px)}
+.weapons,.maneuvers{transform:scale(.8);transform-origin:right top}.maneuvers{top:185px}
+.comms{bottom:78px;opacity:.85}.spear-charge{opacity:.55;transform:translate(-50%,-50%) scale(.8)}
+@media(max-width:1000px){.pilot{left:5vw}.radar{right:calc(5vw + 28px)}.mission{left:28%;top:125px}.wave{left:28%;top:174px}.heading{top:85px}.boss-hud{top:168px}.telemetry.speed{left:calc(50% - 260px)}.telemetry.altitude{right:calc(50% - 260px)}}
+@media(max-width:700px){.pilot{left:18px;bottom:85px}.radar{right:30px;bottom:85px}.mission{left:50%;top:68px}.wave{left:50%;top:158px}.heading{top:115px}.boss-hud{top:187px}.telemetry.speed{left:15px}.telemetry.altitude{right:15px}.comms{bottom:52px}}
+@media(max-height:640px) and (min-width:701px){.mission{top:68px}.wave{top:121px}.heading{top:77px}.boss-hud{top:151px}.pilot{bottom:80px}.radar{bottom:75px}.comms{bottom:45px}}
+
+.rear-threat{position:absolute;left:50%;top:59%;transform:translateX(-50%);padding:7px 14px;border:1px solid #ffe1a766;border-radius:3px;background:#172135b8;color:#ffe4af;font-size:15px;letter-spacing:1px;text-shadow:0 1px 3px #000;white-space:nowrap}
+@media(max-width:700px){.rear-threat{font-size:12px;top:57%}}
+.enemy-charge{position:absolute;left:50%;top:-31px;transform:translateX(-50%);width:60px;height:4px;background:#312a41;display:none}.enemy-charge.active{display:block}.enemy-charge i{display:block;height:100%;background:#ffa968;box-shadow:0 0 6px #ff974d}.enemy-charge em{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-style:normal;font-size:9px;white-space:nowrap;color:#ffd399}.offscreen .enemy-charge{display:none}.boss-charge{position:absolute;left:50%;top:218px;transform:translateX(-50%);font-size:12px;color:#ffc080;text-shadow:0 1px 4px #000}.barrier-status{position:absolute;left:50%;bottom:140px;transform:translateX(-50%);color:#b3fff1;font-size:13px;text-shadow:0 1px 5px #102139}
+
+.audio-controls{display:flex;align-items:center;gap:10px;pointer-events:auto}.audio-controls details{position:relative;font-size:11px}.audio-controls summary{cursor:pointer;color:#eadbba}.audio-panel{position:absolute;right:0;top:28px;width:230px;padding:16px;background:rgba(24,23,43,.96);border:1px solid #b0a58c;box-shadow:0 8px 25px #0006;z-index:50}.audio-panel label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0}.audio-panel input{width:145px;accent-color:#e2c984}.audio-panel small{display:block;margin-top:10px;line-height:1.5;color:#c5c4da}.audio-controls button{white-space:nowrap}
+
+.battle-log{position:absolute;left:24px;top:218px;width:270px;padding:10px 12px 8px;background:linear-gradient(110deg,rgba(9,18,32,.52),rgba(9,18,32,.18));border-left:2px solid #92e8d17a;color:#b7f4e2;font-family:Consolas,'Noto Sans JP',monospace;pointer-events:none;overflow:hidden}.battle-log-title{display:flex;justify-content:space-between;font-size:10px;letter-spacing:1px;padding-bottom:8px;border-bottom:1px solid #b5f8df30}.battle-log-title b{font-size:9px;color:#e6d399;font-weight:400}#battle-log-lines{height:147px;overflow:hidden;padding-top:3px}.battle-log-line{height:21px;line-height:21px;display:flex;gap:8px;font-size:10px;white-space:nowrap;overflow:hidden;transition:none;animation:none}.battle-log-line>span:last-child{overflow:hidden;text-overflow:ellipsis}.battle-log-stamp{flex-shrink:0;color:#77a7aa;font-size:9px}.battle-log-line.success{color:#e8d795}.battle-log-line.danger{color:#ffab9c}.battle-log-line.weapon{color:#efe1b5}@media(max-width:1000px){.battle-log{left:16px;width:220px;font-size:9px}}@media(max-width:700px){.battle-log{left:10px;top:192px;width:175px;padding:6px 8px}.battle-log-title{font-size:8px}.battle-log-title b{display:none}#battle-log-lines{height:84px}.battle-log-line{font-size:9px}.battle-log-stamp{font-size:8px}}@media(max-height:640px) and (min-width:701px){.battle-log{top:162px;width:230px}#battle-log-lines{height:105px}}
+
+.terrain-panel{position:absolute;right:24px;top:218px;width:270px;padding:10px 12px 8px;background:linear-gradient(250deg,rgba(9,18,32,.52),rgba(9,18,32,.18));border-right:2px solid #92e8d17a;color:#b7f4e2;font-family:Consolas,monospace;pointer-events:none}.terrain-panel canvas{display:block;width:100%;height:154px;opacity:.8}@media(max-width:1000px){.terrain-panel{right:16px;width:220px}}@media(max-width:700px){.terrain-panel{right:10px;top:192px;width:175px;padding:6px 8px}.terrain-panel .battle-log-title{font-size:8px}.terrain-panel .battle-log-title b{display:none}.terrain-panel canvas{height:84px}}@media(max-height:640px) and (min-width:701px){.terrain-panel{top:162px;width:230px}.terrain-panel canvas{height:105px}}
+
+@media(min-width:701px) and (min-height:641px){.terrain-panel{top:246px}.terrain-panel canvas{height:126px}}
+
+/* Native pointer hotspot stays exactly at the mouse position, without frame lag. */
+@media(pointer:fine){.playing #scene{cursor:url("../assets/aim-cursor.svg") 32 32,crosshair;}}
+
+#debug-viewer{position:fixed;inset:0;z-index:100;background:#101522;color:#e5f6ee;overflow:auto;padding:24px;font:14px sans-serif}#debug-viewer header{position:static;height:auto;padding:0 0 18px;background:none;display:flex;justify-content:space-between}#debug-viewer h2{font-size:20px}.debug-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr);gap:24px}#debug-canvas{display:block;width:100%;height:55vh;border:1px solid #546876}.debug-controls{display:flex;flex-wrap:wrap;gap:16px}.debug-controls label{display:flex;align-items:center;gap:8px}#debug-viewer button,#debug-viewer select{padding:8px;background:#28364b;color:#fff;border:1px solid #7a9c9d}#debug-viewer table{width:100%;border-collapse:collapse}#debug-viewer th,#debug-viewer td{padding:9px 5px;border-bottom:1px solid #354256;text-align:left}#debug-viewer dl{display:grid;grid-template-columns:1fr 1fr;gap:10px}#debug-viewer dd{margin:0}#debug-viewer aside p,#debug-status{color:#a7c6c4}@media(max-width:850px){.debug-layout{grid-template-columns:1fr}#debug-canvas{height:45vh}}
+
+.debug-sound{margin-top:24px;padding-top:12px;border-top:1px solid #546876}.debug-sound audio{width:min(100%,540px)}.debug-sound p{color:#a7c6c4;font-size:12px}.debug-sound select{max-width:300px}
+
+/* Keep central flight messages clear of the player model. */
+.rear-threat,.comms,.barrier-status,.boss-charge{translate:0 var(--player-avoid-y,0px)}
+
+.data-version{position:absolute;bottom:30px;right:20px;font-size:10px;opacity:.65;pointer-events:none}.data-admin-link{position:absolute;bottom:28px;right:210px;color:#b8cfcf;font-size:11px;z-index:5}.playing .data-admin-link{display:none}
