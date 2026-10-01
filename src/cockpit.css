@@ -56,4 +56,4 @@
 /* Keep central flight messages clear of the player model. */
 .rear-threat,.comms,.barrier-status,.boss-charge{translate:0 var(--player-avoid-y,0px)}
 
-.data-version{position:absolute;bottom:30px;right:20px;font-size:10px;opacity:.65;pointer-events:none}.data-admin-link{position:absolute;bottom:28px;right:210px;color:#b8cfcf;font-size:11px;z-index:5}.playing .data-admin-link{display:none}
+.data-version{position:absolute;bottom:30px;right:20px;font-size:10px;opacity:.65;pointer-events:none}.data-admin-link{position:absolute;bottom:28px;right:210px;color:#b8cfcf;font-size:12px;opacity:.4;text-decoration:none;padding:4px 6px;z-index:5}.data-admin-link:hover,.data-admin-link:focus-visible{opacity:1}.data-admin-link:focus-visible{outline:1px solid currentColor;outline-offset:2px}.playing .data-admin-link{display:none}
