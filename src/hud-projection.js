@@ -16,3 +16,9 @@ export function avoidPlayerMessage(rect,player,height,atFeet=false){
  const top=Math.max(minTop,Math.min(maxTop,side===1?below:above));
  return {offset:top-rect.top,side};
 }
+
+// Gameplay time only: enlarge at 4/7/10/13s, then blink at a gentle 1.25Hz.
+export function guidanceEmphasis(seconds){
+ const level=seconds<4?0:Math.min(4,1+Math.floor((seconds-4)/3));
+ return {scale:1+level*.25,opacity:level===4&&((seconds-13)%.8)>=.4?.35:1};
+}

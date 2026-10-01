@@ -57,3 +57,8 @@
 .rear-threat,.comms,.barrier-status,.boss-charge{translate:0 var(--player-avoid-y,0px)}
 
 .data-version{position:absolute;bottom:30px;right:20px;font-size:10px;opacity:.65;pointer-events:none}.data-admin-link{position:absolute;bottom:28px;right:210px;color:#b8cfcf;font-size:12px;opacity:.4;text-decoration:none;padding:4px 6px;z-index:5}.data-admin-link:hover,.data-admin-link:focus-visible{opacity:1}.data-admin-link:focus-visible{outline:1px solid currentColor;outline-offset:2px}.playing .data-admin-link{display:none}
+
+.marker.offscreen .edge-arrow{scale:var(--cue-scale,1);opacity:var(--cue-opacity,1)}
+.marker.offscreen small{bottom:calc(-14px - (var(--cue-scale,1) - 1)*17px)}
+.rear-threat{font-size:calc(15px * var(--cue-scale,1));max-width:calc(100vw - 32px);white-space:normal;text-align:center;width:max-content;line-height:1.4}
+@media(max-width:700px){.rear-threat{font-size:calc(12px * var(--cue-scale,1))}}
