@@ -337,7 +337,7 @@ function markers(){
   const distance=Math.round(e.g.position.distanceTo(player.g.position));
   e.marker.querySelector('small').textContent=distance+' M';
   if(visible){e.marker.style.left=(v.x*.5+.5)*innerWidth+'px';e.marker.style.top=(-v.y*.5+.5)*innerHeight+'px';}
-  else{const edge=edgeIndicator(view.x/camera.aspect,view.y,view.z,innerWidth,innerHeight);e.marker.style.left=edge.x+'px';e.marker.style.top=edge.y+'px';e.marker.querySelector('.edge-arrow').style.transform=`rotate(${edge.angle}rad)`;}
+  else{const edge=edgeIndicator(view.x,view.y,view.z,innerWidth,innerHeight);e.marker.style.left=edge.x+'px';e.marker.style.top=edge.y+'px';e.marker.querySelector('.edge-arrow').style.transform=`rotate(${edge.angle}rad)`;}
  }
  const boss=enemies.find(e=>e.type==='boss'&&e.hp>0);$('boss-charge').textContent=boss?(boss.stagger>0?'STAGGER / ひるみ':boss.charge>0?`CHARGE ${Math.round((boss.chargeRatio||0)*100)}% · 縦→横 / 横回避→縦回避`:boss.pendingCross?'次は横弾幕 / 縦回避':''):'';
  $('rear-threat').classList.toggle('hidden',state!=='playing'||rearCount===0||actions.turning);$('rear-threat').textContent=actions.turnCooldown>0?`後方に敵 ${rearCount}体 · Ctrlターン ${actions.turnCooldown.toFixed(1)}秒後`:`後方に敵 ${rearCount}体 · Ctrlでターン ↶`;

@@ -1,8 +1,8 @@
-// Camera-space direction remains stable for targets behind the player.
+// Place off-screen cues on a circle centered on the viewport, preserving bearing.
 export function edgeIndicator(x,y,z,width,height){
  let dx=x,dy=-y;if(Math.hypot(dx,dy)<.001){dx=z>0?1:0;dy=z>0?0:-1;}
- const margin=45,rx=Math.max(20,width/2-margin),ry=Math.max(20,height/2-100);
- const factor=Math.min(rx/Math.max(Math.abs(dx),.001),ry/Math.max(Math.abs(dy),.001));
+ const radius=Math.max(20,Math.min(width*.38,height*.34,width/2-45,height/2-70));
+ const factor=radius/Math.hypot(dx,dy);
  return {x:width/2+dx*factor,y:height/2+dy*factor,angle:Math.atan2(dy,dx)};
 }
 
