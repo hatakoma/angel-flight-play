@@ -3,7 +3,7 @@ import {readQuestInput,createQuestEdges} from './vr-input.js';
 import {createVRNotice} from './vr-notice.js';
 import {createVRCombatSignals} from './vr-combat.js';
 import {createViewRecovery} from './vr-comfort.js';
-import {flightViewQuaternion,flightTravelDirection} from './vr-flight.js';
+import {flightViewQuaternion,flightTravelDirection,createFlightRotationSmoother} from './vr-flight.js';
 
 // A separate XR camera keeps headset tracking out of desktop chase-camera logic.
 export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onAction,onPause,onEnd}){
@@ -30,10 +30,11 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  const help=document.createElement('p');help.className='hint vr-help';help.textContent='Quest 2：左スティック 操縦 / 右トリガー 射撃 / 左トリガー・右グリップ 聖槍 / A 出撃・敵切替 / B ターン / X 停止 / Y VR終了';button.after(help);
  const assistLabel=document.createElement('label'),assist=document.createElement('input');assist.type='checkbox';assist.checked=true;assistLabel.className='vr-help';assistLabel.append(assist,document.createTextNode(' VR：天使ちゃんが視界外ならゆっくり視点補正'));help.after(assistLabel);
  const status=document.createElement('p');status.className='hint';status.setAttribute('role','status');help.after(status);
+ const rotationSmoother=createFlightRotationSmoother(),orbitSmoother=createFlightRotationSmoother(),orbitRotation=new THREE.Quaternion();
  const recovery=createViewRecovery(),anchor=new THREE.Vector3(),followOffset=new THREE.Vector3(),headPrevious=new THREE.Quaternion(),neutralInverse=new THREE.Quaternion(),flightRotation=new THREE.Quaternion(),yawRotation=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),offset=new THREE.Vector3(),goal=new THREE.Vector3();
  let anchorReady=false,headReady=false,viewYaw=0,followYaw=0,previousState=null,previousSpeed=0,fade=0;
  const transition=new THREE.Mesh(new THREE.PlaneGeometry(8,8),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0,depthTest:false,depthWrite:false}));transition.position.z=-.8;transition.renderOrder=10010;transition.visible=false;view.add(transition);
- const edges=createQuestEdges(),direction=new THREE.Vector3(),local=new THREE.Vector3();
+ const edges=createQuestEdges(),local=new THREE.Vector3();
  let session=null,entering=false,lastHud=-1,headOffset=new THREE.Vector3(),needsCenter=true,visibility=new Map();
  renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local-floor');renderer.xr.setFramebufferScaleFactor(.8);renderer.xr.setFoveation(1);
  function setQuality(active){
@@ -87,16 +88,22 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  }
  function render(dt,now){
   if(!renderer.xr.isPresenting){renderer.render(scene,camera);return;}
-  const s=getState();camera.getWorldDirection(direction);
+  const s=getState();
   const player=s.playerPosition,step=Math.min(.05,Math.max(0,dt));
   const newFlight=s.state==='playing'&&['intro','result','loading'].includes(previousState);
+  const resetRotation=!anchorReady||newFlight||needsCenter;
   if(!anchorReady){
    viewYaw=0;followYaw=s.facingYaw||0;anchor.copy(camera.position);
    if(player)followOffset.copy(camera.position).sub(player);else followOffset.set(0,5.3,18);
    followOffset.y=5.3;anchorReady=true;fade=1;recovery.reset();
   }
   const orbitYaw=s.maneuver?.turning?s.maneuver.baseYaw+s.maneuver.motion.cameraTurn:(s.facingYaw||0);
-  followOffset.applyAxisAngle(up,orbitYaw-followYaw);followYaw=orbitYaw;
+  orbitRotation.setFromAxisAngle(up,orbitYaw);
+  if(resetRotation)orbitSmoother.reset(orbitRotation);
+  const orbit=orbitSmoother.update(orbitRotation,step);
+  local.set(0,0,-1).applyQuaternion(orbit);
+  const smoothOrbitYaw=Math.atan2(-local.x,-local.z);
+  followOffset.applyAxisAngle(up,smoothOrbitYaw-followYaw);followYaw=smoothOrbitYaw;
   if(newFlight&&player){anchor.copy(player).add(followOffset);fade=1;recovery.reset();}
   else if(player&&s.state!=='paused'){
    goal.copy(player).add(followOffset);
@@ -108,7 +115,10 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
   previousState=s.state;
   // Flight rotation belongs to the rig; the physical head pose remains untouched.
   flightViewQuaternion(s.facingYaw||0,s.facingPitch||0,s.maneuver,flightRotation);
-  function orient(){rig.quaternion.copy(flightRotation).multiply(yawRotation.setFromAxisAngle(up,viewYaw)).multiply(neutralInverse);}
+  flightRotation.multiply(yawRotation.setFromAxisAngle(up,viewYaw));
+  if(resetRotation)rotationSmoother.reset(flightRotation);
+  const smoothRotation=rotationSmoother.update(flightRotation,step);
+  function orient(){rig.quaternion.copy(smoothRotation).multiply(neutralInverse);}
   orient();rig.position.copy(anchor);rig.updateMatrixWorld(true);renderer.xr.updateCamera(view);
   if(needsCenter){
    headOffset.copy(view.position);neutralInverse.copy(view.quaternion).invert();viewYaw=0;needsCenter=false;recovery.reset();fade=1;orient();
@@ -117,7 +127,7 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
   const headSpeed=headReady&&step>0?view.quaternion.angleTo(headPrevious)/step:0;headPrevious.copy(view.quaternion);headReady=true;
   let correction={active:false,yaw:0,height:0};
   if(player){local.copy(player);view.worldToLocal(local);correction=recovery.update(step,{x:local.x,y:local.y,z:local.z,headSpeed,enabled:assist.checked&&s.state==='playing'&&!s.maneuver?.turning&&!s.steering});viewYaw+=correction.yaw;followOffset.y=THREE.MathUtils.clamp(followOffset.y+correction.height,-18,18);}
-  if(correction.yaw){orient();offset.copy(headOffset).multiplyScalar(3).applyQuaternion(rig.quaternion);rig.position.copy(anchor).sub(offset);rig.updateMatrixWorld(true);renderer.xr.updateCamera(view);view.updateMatrixWorld(true);}
+  // Apply recovery through the same rotation filter on the next frame.
   combatSignals.update(s);
   const moving=s.state==='playing',speed=s.speed||0,acceleration=step>0?Math.abs(speed-previousSpeed)/step:0;previousSpeed=speed;
   const intense=s.maneuver?.turning||s.dashing||s.rushing||correction.active||s.steering||speed>80||acceleration>30;
