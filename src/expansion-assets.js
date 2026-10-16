@@ -21,9 +21,9 @@ export async function loadExpansion(scene,gradient){
  }
  for(const object of [...scene.children])if(object.userData.fallbackScenery)scene.remove(object);
  for(const [x,y,z,height] of [[150,35,-350,230],[-420,50,-720,330],[550,65,-1100,440],[-650,30,220,210],[600,30,470,240],[50,20,950,300],[-1050,100,-1750,620],[1200,130,-2100,720]]){
-  const castle=instance('castle',height);castle.position.set(x,y,z);castle.rotation.y=Math.atan2(x,z)*.3;scene.add(castle);
+  const castle=instance('castle',height);castle.position.set(x,y,z);castle.rotation.y=Math.atan2(x,z)*.3;castle.userData.questScenery=true;scene.add(castle);
  }
- for(let i=0;i<10;i++){const angle=i/10*Math.PI*2,gate=instance('gate',95+i%3*20);gate.position.set(Math.sin(angle)*740,35,Math.cos(angle)*740);gate.rotation.y=angle;scene.add(gate);}
+ for(let i=0;i<10;i++){const angle=i/10*Math.PI*2,gate=instance('gate',95+i%3*20);gate.position.set(Math.sin(angle)*740,35,Math.cos(angle)*740);gate.rotation.y=angle;gate.userData.questScenery=true;scene.add(gate);}
  const delta=new THREE.Quaternion(),goal=new THREE.Quaternion(),poseEuler=new THREE.Euler();
  function attachEnemy(e){
   if(e.visual)return;

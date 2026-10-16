@@ -16,3 +16,5 @@ footer{bottom:26px;height:36px;}
 @media(pointer:coarse){#touch{bottom:30px;}}
 
 .launch-sound{display:flex;align-items:center;flex-wrap:wrap;gap:12px 20px;margin:0 0 16px;padding:0;border:0}.launch-sound legend{font-size:11px;color:#c7d6df;margin-bottom:8px;letter-spacing:2px}.launch-sound label{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600;color:#f3e7cf;cursor:pointer;padding:6px 0}.launch-sound input{width:18px;height:18px;margin:0;accent-color:#e9d4af;cursor:pointer}.launch-sound input:focus-visible{outline:2px solid #aeffe4;outline-offset:4px}.launch-sound small{flex-basis:100%;font-size:11px;color:#b9c9d3}.intro-content #start{width:100%}#start:disabled{opacity:.6;cursor:wait}#launch-status{font-size:12px;color:#ffdfa3;margin:10px 0 0}#launch-status:empty{display:none}
+
+#enter-vr{display:block;width:100%;margin-top:10px;padding:12px;border:1px solid #90b8bd;background:#152636;color:#d8fff4;cursor:pointer;font-size:16px}#enter-vr:disabled{opacity:.55;cursor:default}.vr-help{font-size:11px;line-height:1.6;margin:8px 0}.in-vr #hud,.in-vr #touch{visibility:hidden}

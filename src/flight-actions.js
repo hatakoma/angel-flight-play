@@ -14,7 +14,7 @@ export function createFlightActions(){
   }
   if(!['KeyW','KeyA','KeyS','KeyD'].includes(code))return null;
   const last=taps.get(code);taps.set(code,time);
-  if(last===undefined||time-last>.28||time-last<.03||dash||turn||dashCooldown>0)return null;
+  if((!context.forceDash&&(last===undefined||time-last>.28||time-last<.03))||dash||turn||dashCooldown>0)return null;
   const direction=code==='KeyW'?up.clone():code==='KeyS'?up.clone().negate():new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)).multiplyScalar(code==='KeyD'?1:-1);
   if(code==='KeyS'&&context.charging){dash={age:0,direction:(context.away||new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw))).clone().normalize(),duration:.55,speed:210,retreating:true};dashCooldown=.65;taps.clear();return 'retreat';}
   if(code==='KeyW'&&context.barrier){const dir=(context.toward||new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw))).clone().normalize();dash={age:0,direction:dir,duration:Math.min(2.5,Math.max(1.35,((context.toward?.length()||0)+100)/260)),speed:260,rushing:true,yaw:Math.atan2(-dir.x,-dir.z)};dashCooldown=1.5;taps.clear();return 'rush';}

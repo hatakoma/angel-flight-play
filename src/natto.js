@@ -42,7 +42,7 @@ export function createNattoVisuals(scene){
  const vaporMap=new THREE.CanvasTexture(vaporCanvas);vaporMap.colorSpace=THREE.SRGBColorSpace;
  function create(position){
   const g=new THREE.Group(),core=new THREE.Sprite(coreMaterial);core.scale.setScalar(2.6);g.add(core);g.position.copy(position);scene.add(g);
-  const blur=Array.from({length:4},(_,i)=>{const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map,blending:THREE.AdditiveBlending,transparent:true,opacity:.16/(1+i*.6),depthWrite:false,toneMapped:false}));sprite.scale.setScalar(4.8+i*.7);sprite.position.copy(position);scene.add(sprite);return sprite;});
+  const blur=Array.from({length:scene.userData.questVR?1:4},(_,i)=>{const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map,blending:THREE.AdditiveBlending,transparent:true,opacity:.16/(1+i*.6),depthWrite:false,toneMapped:false}));sprite.scale.setScalar(4.8+i*.7);sprite.position.copy(position);scene.add(sprite);return sprite;});
   const previous=position.clone();
   const puff=new THREE.Sprite(new THREE.SpriteMaterial({map:vaporMap,transparent:true,opacity:.25,depthWrite:false,blending:THREE.NormalBlending}));puff.position.copy(position);puff.scale.setScalar(3);scene.add(puff);
   const points=Array.from({length:28},()=>position.clone()),array=new Float32Array(27*18),uv=new Float32Array(27*12);

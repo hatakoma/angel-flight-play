@@ -1,3 +1,4 @@
+import {createQuestVR} from './vr.js';
 import {gameData,stage,dataVersion,loadGameData} from './game-data.js';
 import { createDebugViewer } from './debug-viewer.js';
 import { createTerrainMap } from './terrain-map.js';
@@ -17,7 +18,7 @@ import * as THREE from '../vendor/three.module.js';
 
 const $=id=>document.getElementById(id), clamp=THREE.MathUtils.clamp;
 const scene=new THREE.Scene(); scene.background=new THREE.Color('#8986b2');scene.fog=new THREE.FogExp2('#aba1c0',.0018);
-const renderer=new THREE.WebGLRenderer({canvas:$('scene'),antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+const renderer=new THREE.WebGLRenderer({canvas:$('scene'),antialias:!/Quest|OculusBrowser/i.test(navigator.userAgent)});renderer.setPixelRatio(Math.min(devicePixelRatio,/Quest|OculusBrowser/i.test(navigator.userAgent)?1:1.7));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
 const camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.2,5000);
 const hemi=new THREE.HemisphereLight('#fff2da','#66619d',2.7);scene.add(hemi);const sun=new THREE.DirectionalLight('#fff1cd',3.1);sun.position.set(-300,450,-600);scene.add(sun);
 const gradient=new THREE.DataTexture(new Uint8Array([65,145,230,255]),4,1,THREE.RedFormat);gradient.minFilter=gradient.magFilter=THREE.NearestFilter;gradient.needsUpdate=true;
@@ -99,6 +100,7 @@ function spawnWave(){
 let expansion=null;
 loadExpansion(scene,gradient).then(assets=>{expansion=assets;enemies.filter(e=>e.hp>0).forEach(e=>assets.attachEnemy(e));}).catch(e=>console.error('Expansion asset loading failed',e));
 let captainShake=0,hitStop=0;
+let vrInput={turn:0,climb:0};
 let lastEnemyHitAt=0,rearCueSince=null;
 let state='intro',elapsed=0,hp=gameData.player.maxHp,kills=0,shots=0,hits=0,yaw=0,pitch=0,speed=52,gunCd=0,missileCd=0,target=null,mouse={x:0,y:0,active:false},keys={},fire=false,worldTime=0,damageTime=0;
 const forward=new THREE.Vector3(),up=new THREE.Vector3(0,1,0),temp=new THREE.Vector3();
@@ -179,7 +181,7 @@ function cycleTarget(){
 }
 const debugViewer=createDebugViewer({gradient,getExpansion:()=>expansion,getSnapshot:()=>({hp,time:stage.timeLimit-elapsed,wave,kills,enemies}),onClose:closeDebug});
 function closeDebug(){if(state!=='debug')return;debugViewer.close();$('app').inert=false;state='playing';keys={};fire=false;mouse.active=false;actions.clearTaps();gameAudio.setPaused(false);$('scene').focus();}
-function openDebug(){if(state!=='playing')return;state='debug';$('app').inert=true;keys={};fire=false;mouse.active=false;actions.clearTaps();gameAudio.setPaused(true);debugViewer.open();}
+function openDebug(){if(renderer.xr.isPresenting||state!=='playing')return;state='debug';$('app').inert=true;keys={};fire=false;mouse.active=false;actions.clearTaps();gameAudio.setPaused(true);debugViewer.open();}
 function handleKeyDown(e){
  if(state==='debug'){if(e.code==='Escape'){e.preventDefault();closeDebug();}return;}
  if(e.target?.matches?.('input,select,textarea'))return;
@@ -190,14 +192,14 @@ function handleKeyDown(e){
  if(e.code==='KeyE'){launch(true);return;}
  const threat=enemies.filter(x=>x.hp>0&&x.charge>0&&x.g.position.distanceTo(player.g.position)<500).sort((a,b)=>a.g.position.distanceToSquared(player.g.position)-b.g.position.distanceToSquared(player.g.position))[0];
  const rushTarget=target?.hp>0?target:enemies.filter(x=>x.hp>0).sort((a,b)=>a.g.position.distanceToSquared(player.g.position)-b.g.position.distanceToSquared(player.g.position))[0];
- const action=actions.key(e.code,elapsed,player.g.position,yaw,e.repeat,{charging:!!threat,away:threat?player.g.position.clone().sub(threat.g.position):null,barrier:barrierHits>0&&barrierTime>0,toward:rushTarget?rushTarget.g.position.clone().sub(player.g.position):heading()});
+ const action=actions.key(e.code,elapsed,player.g.position,yaw,e.repeat,{forceDash:!!e.forceDash,charging:!!threat,away:threat?player.g.position.clone().sub(threat.g.position):null,barrier:barrierHits>0&&barrierTime>0,toward:rushTarget?rushTarget.g.position.clone().sub(player.g.position):heading()});
  if(action==='turn'){barrierHits=gameData.player.barrierHits;barrierTime=gameData.player.barrierDuration;gameAudio.play('barrier');gameAudio.play('dash');report('前方ダッシュ → ターン / バリア展開');}
  if(action==='retreat'){barrierHits=gameData.player.barrierHits;barrierTime=gameData.player.barrierDuration;report('後退回避！ バリア2発分 / W・↑を2回で突撃');}
  if(action==='rush'){ramHits.clear();report('突撃！ 小・中悪魔を撃破／大悪魔をひるませ、通過後にターン');}
  if(action){gameAudio.speak(action==='turn'?'voice-turn':action==='rush'?'voice-rush':'voice-dash',{priority:action==='turn'||action==='rush'?1:0,cooldown:3});effects?.burst(player.g.position,'halo',action==='turn'?9:6,.6);if(action!=='turn')gameAudio.play(action==='retreat'?'barrier':action==='rush'?'rush':'dash');}
 }
-addEventListener('keydown',handleKeyDown);addEventListener('keyup',e=>keys[e.code]=false);addEventListener('blur',()=>{if(state==='playing')pause();});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause();gameAudio.setPaused(document.hidden||state==='paused'||state==='debug');});
-addEventListener('mousemove',e=>{if(state!=='playing')return;mouse.x=(e.clientX/innerWidth-.5)*2;mouse.y=(e.clientY/innerHeight-.46)*2;mouse.active=true;});
+addEventListener('keydown',handleKeyDown);addEventListener('keyup',e=>keys[e.code]=false);addEventListener('blur',()=>{if(!renderer.xr.isPresenting&&state==='playing')pause();});document.addEventListener('visibilitychange',()=>{if(renderer.xr.isPresenting)return;if(document.hidden&&state==='playing')pause();gameAudio.setPaused(document.hidden||state==='paused'||state==='debug');});
+addEventListener('mousemove',e=>{if(renderer.xr.isPresenting||state!=='playing')return;mouse.x=(e.clientX/innerWidth-.5)*2;mouse.y=(e.clientY/innerHeight-.46)*2;mouse.active=true;});
 // Mouse events report each button transition, including chorded presses.
 function handleMouseDown(e){if(state!=='playing')return;if(e.button===0){fire=true;launch();}else if(e.button===2){e.preventDefault();launch(true);}}
 function handleMouseUp(e){if(e.button===0)fire=false;}
@@ -231,7 +233,7 @@ const shotGeo=new THREE.SphereGeometry(.38,6,5),missileGeo=new THREE.SphereGeome
 function launch(missile=false){if(state!=='playing'||(missile?missileCd>0:gunCd>0))return;if(missile&&!target){report('聖槍の目標がありません。敵を照準に捉えて。');return;}if(missile)missileCd=gameData.weapons.spear.cooldown;else gunCd=gameData.weapons.gun.cooldown;shots++;player.attack?.(missile);let dir=heading();if(target){const distance=target.g.position.distanceTo(player.g.position);dir.copy(target.g.position).addScaledVector(target.velocity||new THREE.Vector3(),missile?0:distance/gameData.weapons.gun.speed).sub(player.g.position).normalize();}let g=mesh(missile?missileGeo:shotGeo,missile?missileMat:shotMat,scene);g.position.copy(player.g.position).addScaledVector(heading(),2);g.scale.set(1,1,missile?3:4);if(missile){expansion?.attachSpear(g);g.userData.spear=!!expansion;}effects?.attach(g,missile?'trail':'lumen');effects?.burst(g.position,'halo',missile?12:1.8,missile?.4:.18);if(missile){effects?.burst(g.position.clone().addScaledVector(dir,5),'lumen',9,.3);effects?.burst(g.position.clone().addScaledVector(dir,9),'halo',17,.45);}bullets.push({g,v:dir.multiplyScalar(missile?gameData.weapons.spear.speed:gameData.weapons.gun.speed),life:missile?gameData.weapons.spear.lifetime:gameData.weapons.gun.lifetime,target:missile?target:null,hostile:false,damage:missile?gameData.weapons.spear.damage:gameData.weapons.gun.damage});gameAudio.play(missile?'spear':'shot');gameAudio.speak(missile?'voice-spear':'voice-shot',{priority:missile?1:0,cooldown:missile?2:3});if(missile)battleLog.push('SERAPH / 聖槍発射','weapon');}
 function launchNatto(id){gameAudio.play('natto');const position=player.g.position.clone().addScaledVector(heading(),2),flight=createNattoFlight(id,position,heading(),enemies),visual=nattoVisuals.create(position);bullets.push({g:visual.g,v:flight.v,life:gameData.weapons.natto.lifetime,hostile:false,damage:gameData.weapons.natto.damage,natto:flight,nattoVisual:visual});shots++;}
 function update(dt){const playerBefore=player.g.position.clone();barrierTime=Math.max(0,barrierTime-dt);if(!barrierTime&&barrierHits){barrierHits=0;gameAudio.play('barrier-end');}elapsed+=dt;if(elapsed>=stage.timeLimit){elapsed=stage.timeLimit;finish('time');return;}if(nextWaveAt&&elapsed>=nextWaveAt)spawnWave();gunCd-=dt;missileCd-=dt;damageTime-=dt;hurtCooldown=Math.max(0,hurtCooldown-dt);$('app').classList.toggle('damage',damageTime>0);if(elapsed>=stage.timeLimit){elapsed=stage.timeLimit;finish('time');return;}
-let turn=(keys.KeyA||keys.ArrowLeft?1:0)-(keys.KeyD||keys.ArrowRight?1:0),vertical=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);if(!turn&&mouse.active)turn=-mouse.x*.8;if(!vertical&&mouse.active)vertical=-mouse.y*.65;if(vertical<=.35){climbTime=0;climbEnemy=null;climbConsumed=false;}
+let turn=(keys.KeyA||keys.ArrowLeft?1:0)-(keys.KeyD||keys.ArrowRight?1:0),vertical=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);if(renderer.xr.isPresenting){turn=vrInput.turn;vertical=vrInput.climb;mouse.active=false;}if(!turn&&mouse.active)turn=-mouse.x*.8;if(!vertical&&mouse.active)vertical=-mouse.y*.65;if(vertical<=.35){climbTime=0;climbEnemy=null;climbConsumed=false;}
 else if(!actions.turning&&!actions.dashing&&!climbConsumed){
  if(target?.hp>0)climbEnemy=target;
  if(!climbEnemy||climbEnemy.hp<=0)climbEnemy=enemies.filter(e=>e.hp>0&&e.g.position.y>player.g.position.y&&e.g.position.distanceTo(player.g.position)<650).sort((a,b)=>a.g.position.distanceToSquared(player.g.position)-b.g.position.distanceToSquared(player.g.position))[0]||null;
@@ -351,7 +353,7 @@ function markers(){
  charge.style.setProperty('--charge',percent+'%');charge.setAttribute('aria-valuenow',percent);charge.classList.toggle('ready',percent===100);$('charge-value').textContent=percent===100?'READY':percent+'%';
 }
 const cameraAim=new THREE.Vector3(-2,79,110),cameraDirection=new THREE.Vector3(0,0,-1);
-let last=performance.now();function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.05);last=now;if(state==='debug'){debugViewer.update(dt);return;}if(hitStop>0&&(state==='playing'||state==='victory')){hitStop=Math.max(0,hitStop-dt);renderer.render(scene,camera);return;}if(state!=='paused'){worldTime+=dt;player.animate?.(worldTime,speed,dt,state==='playing'&&!player.maneuver?pitch:0,player.maneuver?.motion);player.wings.forEach((w,i)=>{w.rotation.y=Math.sin(worldTime*4)*(i?-.12:.12);w.rotation.z=Math.sin(worldTime*4)*(i?.08:-.08);});player.halo.rotation.z=worldTime*.2;player.ribbon.forEach((r,i)=>r.rotation.x=.5+Math.sin(worldTime*4+i)*.12);if(state==='playing'){battleLog.update(dt);update(dt);}else if(state==='victory'){battleLog.update(dt);updateVictory(dt);}updateDefeats(dt);effects?.update(worldTime,dt,actions.dashing,state==='playing'&&player.rushing);debris?.update(dt);for(let i=sparks.length-1;i>=0;i--){let s=sparks[i];s.life-=dt;s.g.scale.addScalar(dt*15);s.g.material.opacity=Math.max(0,s.life);if(s.life<=0){scene.remove(s.g);s.g.geometry.dispose();s.g.material.dispose();sparks.splice(i,1);}}}
+let last=performance.now();function frame(now){vr.input();const dt=Math.min((now-last)/1000,.05);last=now;if(state==='debug'){debugViewer.update(dt);return;}if(hitStop>0&&(state==='playing'||state==='victory')){hitStop=Math.max(0,hitStop-dt);vr.render(dt,now);return;}if(state!=='paused'){worldTime+=dt;player.animate?.(worldTime,speed,dt,state==='playing'&&!player.maneuver?pitch:0,player.maneuver?.motion);player.wings.forEach((w,i)=>{w.rotation.y=Math.sin(worldTime*4)*(i?-.12:.12);w.rotation.z=Math.sin(worldTime*4)*(i?.08:-.08);});player.halo.rotation.z=worldTime*.2;player.ribbon.forEach((r,i)=>r.rotation.x=.5+Math.sin(worldTime*4+i)*.12);if(state==='playing'){battleLog.update(dt);update(dt);}else if(state==='victory'){battleLog.update(dt);updateVictory(dt);}updateDefeats(dt);effects?.update(worldTime,dt,actions.dashing,state==='playing'&&player.rushing);debris?.update(dt);for(let i=sparks.length-1;i>=0;i--){let s=sparks[i];s.life-=dt;s.g.scale.addScalar(dt*15);s.g.material.opacity=Math.max(0,s.life);if(s.life<=0){scene.remove(s.g);s.g.geometry.dispose();s.g.material.dispose();sparks.splice(i,1);}}}
 if(state==='intro'){player.g.position.set(0,78+Math.sin(worldTime)*.4,120);player.g.rotation.y=-.25;camera.position.set(7,82,137);camera.lookAt(-2,79,110);}else{
  const m=player.maneuver,orbitYaw=m?m.baseYaw+m.motion.cameraTurn:yaw;
  const dir=m?new THREE.Vector3(-Math.sin(orbitYaw),.12*Math.sin(m.motion.progress*Math.PI),-Math.cos(orbitYaw)).normalize():heading();
@@ -359,9 +361,15 @@ if(state==='intro'){player.g.position.set(0,78+Math.sin(worldTime)*.4,120);playe
  const desired=player.g.position.clone().addScaledVector(cameraDirection,m?-21:-15).add(new THREE.Vector3(0,m?7:5.3,0));
  camera.position.lerp(desired,1-Math.exp(-dt*4));
  cameraAim.lerp(player.g.position.clone().addScaledVector(cameraDirection,25).add(new THREE.Vector3(0,4,0)),1-Math.exp(-dt*5));camera.lookAt(cameraAim);
-}$('sky-phase').textContent=atmosphere.update(wave>WAVE_COUNT?bossTime:null,victoryTime,player.g.position,heading());gameAudio.update(dt,{flying:state==='playing',speed,hp,time:stage.timeLimit-elapsed,spearCd:missileCd,turning:!!player.maneuver?.turning});if(state==='playing')terrainMap.update(dt,airspaceCenter,player.g.position,yaw);if(captainShake>0){if(state!=='paused')captainShake=Math.max(0,captainShake-dt);const a=(captainShake/.45)**2*.009;camera.rotateX(Math.sin(worldTime*71)*a);camera.rotateY(Math.sin(worldTime*89+.8)*a);camera.rotateZ(Math.sin(worldTime*57)*a*.45);}renderer.render(scene,camera);markers();radar();}
-reset();state='intro';gameAudio.music(stage.music.title);$('intro').classList.remove('hidden');$('app').classList.remove('playing');requestAnimationFrame(frame);
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+}$('sky-phase').textContent=atmosphere.update(wave>WAVE_COUNT?bossTime:null,victoryTime,player.g.position,heading());gameAudio.update(dt,{flying:state==='playing',speed,hp,time:stage.timeLimit-elapsed,spearCd:missileCd,turning:!!player.maneuver?.turning});if(state==='playing'&&!vr.active)terrainMap.update(dt,airspaceCenter,player.g.position,yaw);if(captainShake>0&&!vr.active){if(state!=='paused')captainShake=Math.max(0,captainShake-dt);const a=(captainShake/.45)**2*.009;camera.rotateX(Math.sin(worldTime*71)*a);camera.rotateY(Math.sin(worldTime*89+.8)*a);camera.rotateZ(Math.sin(worldTime*57)*a*.45);}vr.render(dt,now);if(!vr.active){markers();radar();}}
+const vr=createQuestVR({renderer,scene,camera,clouds,
+ getState:()=>({state,aim:player.g.position.clone().addScaledVector(heading(),100),hp,maxHp:gameData.player.maxHp,time:stage.timeLimit-elapsed,kills,total:TOTAL_TARGETS,enemies,target,ammo:nattoMagazine.ammo,capacity:gameData.weapons.natto.capacity,spear:clamp(1-missileCd/gameData.weapons.spear.cooldown,0,1),barrier:barrierTime>0?barrierHits:0,elapsed,lastHit:lastEnemyHitAt,maneuver:player.maneuver,result:$('result-title').textContent,error:$('launch-status').textContent}),
+ onInput:input=>{vrInput=input;fire=input.fire;keys.KeyE=input.spear;keys.ShiftLeft=input.boost;},
+ onPause:()=>{if(state==='playing')pause();},onEnd:()=>{if(state==='playing')pause();},
+ onAction:event=>{if(event==='action'){if(state==='intro'||state==='result')startFlight();else if(state==='paused')pause();else if(state==='playing')cycleTarget();return;}if(event==='pause'){pause();return;}const code=event==='turnBack'?'ControlLeft':event;if(!['ControlLeft','KeyW','KeyA','KeyS','KeyD'].includes(code))return;handleKeyDown({code,repeat:false,forceDash:true,preventDefault(){}});keys[code]=false;}
+});
+reset();state='intro';gameAudio.music(stage.music.title);$('intro').classList.remove('hidden');$('app').classList.remove('playing');renderer.setAnimationLoop(frame);
+addEventListener('resize',()=>{if(renderer.xr.isPresenting)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 
 
 

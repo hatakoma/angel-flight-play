@@ -8,8 +8,8 @@ export async function loadDebris(scene,gradient){
  const active=[];
  function remove(index){const p=active[index];scene.remove(p.mesh);p.mesh.material.dispose();active.splice(index,1);}
  function burst(position,boss=false){
-  for(let i=0;i<(boss?16:10);i++){
-   if(active.length>=128)remove(0);
+  for(let i=0;i<(scene.userData.questVR?(boss?6:4):(boss?16:10));i++){
+   if(active.length>=(scene.userData.questVR?32:128))remove(0);
    const t=templates[i%templates.length],material=new THREE.MeshToonMaterial({color:t.color,gradientMap:gradient,transparent:true,side:THREE.DoubleSide});
    const mesh=new THREE.Mesh(t.geometry,material);mesh.position.copy(position);mesh.rotation.set(Math.random()*6,Math.random()*6,Math.random()*6);mesh.scale.setScalar((boss?1.5:1)*(.65+Math.random()*.9));scene.add(mesh);
    active.push({mesh,age:0,life:.65+Math.random()*.45,v:new THREE.Vector3(Math.random()-.5,Math.random()*.8,Math.random()-.5).normalize().multiplyScalar(12+Math.random()*16),spin:new THREE.Vector3(Math.random()*8,Math.random()*8,Math.random()*8)});
