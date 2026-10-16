@@ -151,14 +151,14 @@ function reset(){lastEnemyHitAt=0;rearCueSince=null;refreshEncounter();airspaceR
 function finish(reason){state='result';fire=false;let win=reason==='clear';battleLog.push(win?'MISSION COMPLETE':reason==='time'?'TIME LIMIT':'SIGNAL LOST / GAME OVER',win?'success':'danger');$('result-title').textContent=win?'MISSION COMPLETE':reason==='time'?'TIME LIMIT':'GAME OVER';$('result-copy').textContent=win?'全編隊と大悪魔を撃破。聖域に静寂が戻った。':reason==='time'?'テストフライト終了。次は、大悪魔の撃破を。':'翼の力が尽きた。もう一度、空へ。';$('rank').textContent=win?(hp/gameData.player.maxHp>=.7&&elapsed<stage.timeLimit*.84?'S':hp/gameData.player.maxHp>=.4?'A':'B'):'C';$('stats').innerHTML=`<span>撃破数<b>${kills} / ${TOTAL_TARGETS}</b></span><span>フライト時間<b>${format(elapsed)}</b></span><span>残り耐久値<b>${Math.ceil(hp/gameData.player.maxHp*100)}%</b></span><span>命中率<b>${shots?Math.min(100,Math.round(hits/shots*100)):0}%</b></span>`;$('result').classList.remove('hidden');gameAudio.music(win?stage.music.victory:stage.music.defeat);if(!win)gameAudio.speak(reason==='time'?'voice-timeout':'voice-defeat',{priority:3});}
 function format(t){return `${Math.floor(t/60).toString().padStart(2,'0')}:${Math.floor(t%60).toString().padStart(2,'0')}`;}
 function pause(){if(state==='playing'){state='paused';gameAudio.setPaused(true);actions.clearTaps();keys={};fire=false;mouse.active=false;$('pause').classList.remove('hidden');}else if(state==='paused'){state='playing';gameAudio.setPaused(false);$('pause').classList.add('hidden');}}
-let soundRequest=Promise.resolve(false),defaultSoundPending=true;
+let soundRequest=Promise.resolve(false),defaultSoundPending=true,soundChoice=0;
 async function setSound(value){
- soundEnabled=value;const requested=value;
+ soundEnabled=value;const requested=value,choice=++soundChoice;
  $('launch-sound-on').checked=value;$('launch-sound-off').checked=!value;
  $('sound').textContent=value?'SOUND …':'SOUND OFF';
  $('launch-status').textContent=value?'音源を準備しています…':'';
  const active=await gameAudio.setEnabled(requested);
- if(requested===soundEnabled){soundEnabled=active;$('sound').textContent=active?'SOUND ON':'SOUND OFF';$('sound').setAttribute('aria-pressed',String(active));$('launch-sound-on').checked=active;$('launch-sound-off').checked=!active;$('launch-status').textContent=requested&&!active?'音源を読み込めませんでした。ONを選ぶと再試行できます。':'';}
+ if(choice===soundChoice){soundEnabled=active;$('sound').textContent=active?'SOUND ON':'SOUND OFF';$('sound').setAttribute('aria-pressed',String(active));$('launch-sound-on').checked=active;$('launch-sound-off').checked=!active;$('launch-status').textContent=requested&&!active?'音源を読み込めませんでした。ONを選ぶと再試行できます。':'';}
  return active;
 }
 function chooseSound(value){defaultSoundPending=false;document.removeEventListener('pointerdown',startDefaultSound,true);document.removeEventListener('keydown',startDefaultSound,true);soundRequest=setSound(value);return soundRequest;}
@@ -167,7 +167,7 @@ document.addEventListener('pointerdown',startDefaultSound,true);document.addEven
 let launching=false;
 async function startFlight(){
  if(launching)return;launching=true;$('start').disabled=true;
- try{if(defaultSoundPending)chooseSound(true);await soundRequest;await prepareFlight();}
+ try{if(defaultSoundPending)chooseSound(true);await prepareFlight();}
  finally{launching=false;$('start').disabled=false;}
 }
 $('launch-sound-on').onchange=()=>chooseSound(true);$('launch-sound-off').onchange=()=>chooseSound(false);$('launch-sound-on').onclick=()=>{if(defaultSoundPending)chooseSound(true);};

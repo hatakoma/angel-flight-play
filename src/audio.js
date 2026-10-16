@@ -1,7 +1,11 @@
 // Licensed gothic BGM and GameSynth effects. One context, bounded SFX voices and separate buses.
 const ROOT=new URL('../assets/audio/',import.meta.url);
-export function createGameAudio({onStatus=()=>{},onMusic=()=>{}}={}){
+export function audioDeadline(promise,ms){
+ let timer;return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Audio timeout')),ms);})]).finally(()=>clearTimeout(timer));
+}
+export function createGameAudio({onStatus=()=>{},onMusic=()=>{},loadTimeoutMs=15000,resumeTimeoutMs=3000}={}){
  let ctx,master,musicBus,sfxBus,voiceBus,windBus,wind,loading,enabled=false,paused=false;
+ let enableRequest=0;
  let mode='title',music=null,manifest={},buffers=new Map(),voices=new Set(),last=new Map();
  let wingClock=0,warningClock=0,previousCd=0,wasTurning=false;
  const volumes={music:.38,sfx:.65,voice:.8};
@@ -31,17 +35,31 @@ export function createGameAudio({onStatus=()=>{},onMusic=()=>{}}={}){
    musicBus.connect(master);sfxBus.connect(master);voiceBus.connect(master);windBus.connect(sfxBus);master.connect(limiter);limiter.connect(ctx.destination);
    master.gain.value=0;musicBus.gain.value=volumes.music;sfxBus.gain.value=volumes.sfx;voiceBus.gain.value=volumes.voice;windBus.gain.value=0;
   }
-  await ctx.resume();
+  await audioDeadline(ctx.resume(),resumeTimeoutMs);
   if(!loading){
-   onStatus('音源を読み込み中…');
-   loading=(async()=>{
-    const response=await fetch(new URL('manifest.json',ROOT));if(!response.ok)throw Error('Audio manifest');manifest=await response.json();
-    await Promise.all(Object.keys(manifest).map(async name=>{const r=await fetch(new URL(manifest[name].file||name+'.wav',ROOT));if(!r.ok)throw Error(name);const buffer=await ctx.decodeAudioData(await r.arrayBuffer());buffers.set(name,buffer);if(manifest[name].kind==='bgm'){let sum=0,count=0;for(let c=0;c<buffer.numberOfChannels;c++){const data=buffer.getChannelData(c);for(let i=0;i<data.length;i+=64){sum+=data[i]*data[i];count++;}}manifest[name].level=Math.min(1,.12/Math.max(.001,Math.sqrt(sum/Math.max(1,count))));}}));
-    onStatus('音源の準備完了');
-   })().catch(error=>{loading=null;onStatus('音源を読み込めません。SOUNDを押して再試行してください');throw error;});
+   onStatus('音源を読み込み中…（出撃できます）');
+   const controller=new AbortController(),signal=controller.signal;
+   const task=(async()=>{
+    if(!Object.keys(manifest).length){const response=await fetch(new URL('manifest.json',ROOT),{signal});if(!response.ok)throw Error('Audio manifest');manifest=await response.json();}
+    const queue=Object.keys(manifest).filter(name=>!buffers.has(name));
+    // Bound simultaneous decoding on standalone headsets. One failed file does not block the others.
+    await Promise.all(Array.from({length:3},async()=>{
+     while(queue.length&&!signal.aborted){const name=queue.shift();try{
+      const r=await fetch(new URL(manifest[name].file||name+'.wav',ROOT),{signal});if(!r.ok)throw Error(name);
+      const buffer=await ctx.decodeAudioData(await r.arrayBuffer());if(signal.aborted)return;
+      buffers.set(name,buffer);
+      if(manifest[name].kind==='bgm'){let sum=0,count=0;for(let c=0;c<buffer.numberOfChannels;c++){const data=buffer.getChannelData(c);for(let i=0;i<data.length;i+=64){sum+=data[i]*data[i];count++;}}manifest[name].level=Math.min(1,.12/Math.max(.001,Math.sqrt(sum/Math.max(1,count))));}
+     }catch{/* Missing assets remain retryable on the next Sound ON. */}}
+    }));
+   })();
+   loading=audioDeadline(task,loadTimeoutMs).catch(()=>{}).finally(()=>{controller.abort();loading=null;});
   }
-  await loading;return true;
+  await loading;
+  const complete=Object.keys(manifest).length>0&&buffers.size===Object.keys(manifest).length;
+  onStatus(complete?'音源の準備完了':buffers.size?'一部の音源で再生中。SOUND ONで再読込できます':'音源を読み込めません。SOUND ONで再試行できます');
+  return buffers.size>0;
  }
+
  function switchMusic(next,force=false){
   mode=next;if(!enabled||!ctx||!buffers.has(next)||(!force&&music?.name===next))return;
   const changed=music?.name!==next;
@@ -65,12 +83,12 @@ export function createGameAudio({onStatus=()=>{},onMusic=()=>{}}={}){
  }
  return {
   async setEnabled(value){
-   enabled=value;
+   const request=++enableRequest;enabled=value;
    if(!value){stopSpeech();if(ctx)ramp(master,0);onStatus('消音');onMusic(null);return false;}
-   try{if(!await unlock()){enabled=false;return false;}}catch{enabled=false;return false;}
-   if(!enabled)return false;
+   try{if(!await unlock()){if(request===enableRequest)enabled=false;return false;}}catch{if(request===enableRequest){enabled=false;onStatus('音声を開始できません。SOUND ONで再試行できます');}return false;}
+   if(request!==enableRequest||!enabled)return false;
    ramp(master,.8);if(!switchMusic(mode)&&music)onMusic(manifest[music.name].label);if(!wind)wind=source('wind',windBus,1,true);
-   if(paused)await ctx.suspend();else play('ui');return true;
+   if(paused)ctx.suspend().catch(()=>{});else play('ui');return true;
   },
   setVolume(bus,value){if(!(bus in volumes))return;volumes[bus]=Math.max(0,Math.min(1,Number(value)||0));if(ctx)ramp(bus==='music'?musicBus:bus==='voice'?voiceBus:sfxBus,volumes[bus]);},
   setPaused(value){paused=value;if(!ctx)return;if(value)ctx.suspend().catch(()=>{});else if(enabled)ctx.resume().catch(()=>{});},
