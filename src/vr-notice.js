@@ -1,7 +1,7 @@
 // VR remains unobstructed until an actionable warning or a menu is needed.
 export function createVRNotice(){
  let previousHp=null,damageUntil=-1;
- return function notice(s,{rear=0,charging=false}={}){
+ return function notice(s,{rear=0}={}){
   const hp=Math.ceil(s.hp),time=Math.max(0,Math.ceil(s.time));
   if(s.state!=='playing'){previousHp=null;damageUntil=-1;
    if(s.state==='loading')return ['準備中…',''];
@@ -14,7 +14,6 @@ export function createVRNotice(){
   previousHp=s.hp;
   if(s.hp/Math.max(1,s.maxHp)<=.3)return [`体力低下　HP ${hp}`,'右スティック：緊急回避'];
   if(time<=20)return [`残り ${time} 秒`,''];
-  if(charging)return ['敵が攻撃準備中','右スティック：緊急回避'];
   if(s.elapsed<damageUntil)return [`被弾　HP ${hp}`,''];
   if(rear>0&&s.elapsed-s.lastHit>=6&&!s.maneuver?.turning)return ['後方に敵','B：ターン'];
   return null;

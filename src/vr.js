@@ -1,6 +1,7 @@
 import * as THREE from '../vendor/three.module.js';
 import {readQuestInput,createQuestEdges} from './vr-input.js';
 import {createVRNotice} from './vr-notice.js';
+import {createVRCombatSignals} from './vr-combat.js';
 
 // A separate XR camera keeps headset tracking out of desktop chase-camera logic.
 export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onAction,onPause,onEnd}){
@@ -19,6 +20,7 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  const tableGeometry=new THREE.BufferGeometry();tableGeometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));tableGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));tableGeometry.setIndex(indices);tableGeometry.computeVertexNormals();
  const hud=new THREE.Mesh(tableGeometry,new THREE.MeshBasicMaterial({map:texture,transparent:true,side:THREE.DoubleSide,depthTest:false,depthWrite:false,toneMapped:false}));
  hud.name='vr-warning-table';hud.visible=false;hud.renderOrder=10000;hud.frustumCulled=false;view.add(hud);rig.visible=false;
+ const combatSignals=createVRCombatSignals(scene,view);
  const notice=createVRNotice();let lastNotice='';
  const veilCanvas=document.createElement('canvas');veilCanvas.width=veilCanvas.height=128;const vc=veilCanvas.getContext('2d'),grad=vc.createRadialGradient(64,64,24,64,64,64);grad.addColorStop(0,'#0000');grad.addColorStop(.65,'#0002');grad.addColorStop(1,'#000e');vc.fillStyle=grad;vc.fillRect(0,0,128,128);
  const veil=new THREE.Mesh(new THREE.PlaneGeometry(7,7),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(veilCanvas),transparent:true,depthWrite:false,depthTest:false,toneMapped:false,opacity:.3}));veil.position.z=-2.8;veil.renderOrder=9999;view.add(veil);
@@ -31,7 +33,7 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  function setQuality(active){
   scene.userData.questVR=active;rig.visible=active;document.body.classList.toggle('in-vr',active);
   if(active){clouds.forEach((o,i)=>{visibility.set(o,o.visible);o.visible=i%4===0;});}
-  else{for(const [o,v] of visibility)o.visible=v;visibility.clear();}
+  else{combatSignals.hide();for(const [o,v] of visibility)o.visible=v;visibility.clear();}
  }
  function clear(){onInput(readQuestInput([]));edges.reset();}
  function ended(){session=null;entering=false;clear();setQuality(false);onEnd();button.disabled=false;button.textContent='VRで遊ぶ / Quest 2';status.textContent='VRを終了しました。通常画面から再開できます。';}
@@ -64,9 +66,9 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
   for(const o of scene.children)if(o.userData.questScenery){if(!visibility.has(o))visibility.set(o,o.visible);o.visible=o.position.distanceToSquared(camera.position)<1000*1000;}
  }
  function drawHud(s){
-  const q=view.getWorldQuaternion(new THREE.Quaternion()).invert(),p=view.getWorldPosition(new THREE.Vector3());let rear=0,charging=false;
-  for(const e of s.enemies){if(e.hp<=0)continue;local.copy(e.g.position).sub(p).applyQuaternion(q);if(local.z>=0)rear++;if(e.charge>0&&local.length()<450)charging=true;}
-  const lines=notice(s,{rear,charging});hud.visible=!!lines;
+  const q=view.getWorldQuaternion(new THREE.Quaternion()).invert(),p=view.getWorldPosition(new THREE.Vector3());let rear=0;
+  for(const e of s.enemies){if(e.hp<=0)continue;local.copy(e.g.position).sub(p).applyQuaternion(q);if(local.z>=0)rear++;}
+  const lines=notice(s,{rear});hud.visible=!!lines;
   const signature=JSON.stringify(lines);if(signature===lastNotice)return;lastNotice=signature;
   ctx.clearRect(0,0,1024,256);
   if(lines){
@@ -86,6 +88,7 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
   if(needsCenter){headOffset.copy(view.position);needsCenter=false;}
   const offset=headOffset.clone().multiplyScalar(3).applyQuaternion(rig.quaternion);rig.position.sub(offset);rig.updateMatrixWorld(true);
   renderer.xr.updateCamera(view);view.updateMatrixWorld(true);
+  combatSignals.update(s);
   veil.material.opacity=(s.maneuver?.turning||s.maneuver?.dashing)? .9:.3;
   if(now-lastHud>=100||lastHud<0){quality();drawHud(s);lastHud=now;}
   renderer.render(scene,view);
