@@ -158,12 +158,12 @@ async function setSound(value){
  $('sound').textContent=value?'SOUND …':'SOUND OFF';
  $('launch-status').textContent=value?'音源を準備しています…':'';
  const active=await gameAudio.setEnabled(requested);
- if(choice===soundChoice){soundEnabled=active;$('sound').textContent=active?'SOUND ON':'SOUND OFF';$('sound').setAttribute('aria-pressed',String(active));$('launch-sound-on').checked=active;$('launch-sound-off').checked=!active;$('launch-status').textContent=requested&&!active?'音源を読み込めませんでした。ONを選ぶと再試行できます。':'';}
+ if(choice===soundChoice){soundEnabled=active;$('sound').textContent=active?'SOUND ON':'SOUND OFF';$('sound').setAttribute('aria-pressed',String(active));$('launch-sound-on').checked=active;$('launch-sound-off').checked=!active;$('launch-status').textContent=requested&&!active?(gameAudio.error||'音源を読み込めませんでした。ONを選ぶと再試行できます。'):'';}
  return active;
 }
-function chooseSound(value){defaultSoundPending=false;document.removeEventListener('pointerdown',startDefaultSound,true);document.removeEventListener('keydown',startDefaultSound,true);soundRequest=setSound(value);return soundRequest;}
+function chooseSound(value){defaultSoundPending=false;document.removeEventListener('click',startDefaultSound,true);document.removeEventListener('keydown',startDefaultSound,true);soundRequest=setSound(value);return soundRequest;}
 function startDefaultSound(event){if(defaultSoundPending&&!event.target.closest?.('.launch-sound,#sound'))chooseSound(true);}
-document.addEventListener('pointerdown',startDefaultSound,true);document.addEventListener('keydown',startDefaultSound,true);
+document.addEventListener('click',startDefaultSound,true);document.addEventListener('keydown',startDefaultSound,true);
 let launching=false;
 async function startFlight(){
  if(launching)return;launching=true;$('start').disabled=true;

@@ -3,9 +3,9 @@ const ROOT=new URL('../assets/audio/',import.meta.url);
 export function audioDeadline(promise,ms){
  let timer;return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Audio timeout')),ms);})]).finally(()=>clearTimeout(timer));
 }
-export function createGameAudio({onStatus=()=>{},onMusic=()=>{},loadTimeoutMs=15000,resumeTimeoutMs=3000}={}){
+export function createGameAudio({onStatus=()=>{},onMusic=()=>{},loadTimeoutMs=45000,resumeTimeoutMs=8000}={}){
  let ctx,master,musicBus,sfxBus,voiceBus,windBus,wind,loading,enabled=false,paused=false;
- let enableRequest=0;
+ let enableRequest=0,lastError='';const pending=new Map();
  let mode='title',music=null,manifest={},buffers=new Map(),voices=new Set(),last=new Map();
  let wingClock=0,warningClock=0,previousCd=0,wasTurning=false;
  const volumes={music:.38,sfx:.65,voice:.8};
@@ -36,32 +36,47 @@ export function createGameAudio({onStatus=()=>{},onMusic=()=>{},loadTimeoutMs=15
    master.gain.value=0;musicBus.gain.value=volumes.music;sfxBus.gain.value=volumes.sfx;voiceBus.gain.value=volumes.voice;windBus.gain.value=0;
   }
   await audioDeadline(ctx.resume(),resumeTimeoutMs);
-  if(!loading){
-   onStatus('音源を読み込み中…（出撃できます）');
-   const controller=new AbortController(),signal=controller.signal;
-   const task=(async()=>{
-    if(!Object.keys(manifest).length){const response=await fetch(new URL('manifest.json',ROOT),{signal});if(!response.ok)throw Error('Audio manifest');manifest=await response.json();}
-    const queue=Object.keys(manifest).filter(name=>!buffers.has(name));
-    // Bound simultaneous decoding on standalone headsets. One failed file does not block the others.
-    await Promise.all(Array.from({length:3},async()=>{
-     while(queue.length&&!signal.aborted){const name=queue.shift();try{
-      const r=await fetch(new URL(manifest[name].file||name+'.wav',ROOT),{signal});if(!r.ok)throw Error(name);
-      const buffer=await ctx.decodeAudioData(await r.arrayBuffer());if(signal.aborted)return;
-      buffers.set(name,buffer);
-      if(manifest[name].kind==='bgm'){let sum=0,count=0;for(let c=0;c<buffer.numberOfChannels;c++){const data=buffer.getChannelData(c);for(let i=0;i<data.length;i+=64){sum+=data[i]*data[i];count++;}}manifest[name].level=Math.min(1,.12/Math.max(.001,Math.sqrt(sum/Math.max(1,count))));}
-     }catch{/* Missing assets remain retryable on the next Sound ON. */}}
-    }));
-   })();
-   loading=audioDeadline(task,loadTimeoutMs).catch(()=>{}).finally(()=>{controller.abort();loading=null;});
+  if(!Object.keys(manifest).length){
+   const controller=new AbortController();
+   try{manifest=await audioDeadline((async()=>{const r=await fetch(new URL('manifest.json',ROOT),{signal:controller.signal});if(!r.ok)throw Error('音源一覧 HTTP '+r.status);return r.json();})(),loadTimeoutMs);}
+   finally{controller.abort();}
   }
-  await loading;
-  const complete=Object.keys(manifest).length>0&&buffers.size===Object.keys(manifest).length;
-  onStatus(complete?'音源の準備完了':buffers.size?'一部の音源で再生中。SOUND ONで再読込できます':'音源を読み込めません。SOUND ONで再試行できます');
-  return buffers.size>0;
+  startLoading();return true;
+ }
+ function audioStatus(){
+  const ready=[...buffers.keys()].filter(n=>manifest[n]?.kind!=='bgm').length,total=Object.values(manifest).filter(m=>m.kind!=='bgm').length;
+  onStatus(lastError?lastError:`効果音 ${ready}/${total} · BGMは使用する曲だけ読み込み`);
+ }
+ function loadAsset(name){
+  if(buffers.has(name))return Promise.resolve(buffers.get(name));
+  if(pending.has(name))return pending.get(name);
+  const item=manifest[name];if(!item)return Promise.reject(Error('未登録音源 '+name));
+  const controller=new AbortController();
+  const task=(async()=>{const r=await fetch(new URL(item.file||name+'.wav',ROOT),{signal:controller.signal});if(!r.ok)throw Error('HTTP '+r.status);
+   const buffer=await ctx.decodeAudioData(await r.arrayBuffer());if(controller.signal.aborted)throw Error('期限切れ');
+   // Discard obsolete music; never retain all five full-length decoded tracks on Quest.
+   if(item.kind==='bgm'&&name!==mode)return buffer;
+   buffers.set(name,buffer);
+   if(item.kind==='bgm'){let sum=0,count=0;for(let c=0;c<buffer.numberOfChannels;c++){const data=buffer.getChannelData(c);for(let i=0;i<data.length;i+=64){sum+=data[i]*data[i];count++;}}item.level=Math.min(1,.12/Math.max(.001,Math.sqrt(sum/Math.max(1,count))));}
+   return buffer;
+  })();
+  const job=audioDeadline(task,loadTimeoutMs).catch(error=>{lastError=`${item.label||name}：${error.message} / SOUND ONで再試行`;throw error;}).finally(()=>{controller.abort();pending.delete(name);audioStatus();});pending.set(name,job);return job;
+ }
+ function startLoading(){
+  if(loading)return;lastError='';const queue=Object.keys(manifest).filter(n=>manifest[n].kind!=='bgm'&&!buffers.has(n));
+  loading=Promise.all(Array.from({length:2},async()=>{while(queue.length){const name=queue.shift();try{await loadAsset(name);if(name==='wind'&&enabled&&!wind)wind=source('wind',windBus,1,true);}catch{}}})).finally(()=>{loading=null;audioStatus();});
+ }
+ // Only one long music decode at a time, including when stages change during loading.
+ let musicLoading=false;
+ function requestMusic(){
+  if(musicLoading||!manifest[mode]||buffers.has(mode))return;
+  musicLoading=true;const requested=mode;
+  loadAsset(requested).then(()=>{if(enabled&&requested===mode)switchMusic(mode);}).catch(()=>{}).finally(()=>{musicLoading=false;if(enabled&&mode!==requested)requestMusic();});
  }
 
  function switchMusic(next,force=false){
-  mode=next;if(!enabled||!ctx||!buffers.has(next)||(!force&&music?.name===next))return;
+  mode=next;if(!enabled||!ctx)return;if(!buffers.has(next)){requestMusic();return;}if(!force&&music?.name===next)return;
+  for(const name of buffers.keys())if(manifest[name]?.kind==='bgm'&&name!==next)buffers.delete(name);
   const changed=music?.name!==next;
   const fade=force&&music?.name===next?(manifest[next].crossfade||.85):.85;
   if(music){const old=music;ramp(old.gain,0,fade);old.src.stop(ctx.currentTime+fade+.05);}
@@ -82,10 +97,11 @@ export function createGameAudio({onStatus=()=>{},onMusic=()=>{},loadTimeoutMs=15
   if(panner){const end=v.src.onended;v.src.onended=()=>{end();panner.disconnect();};}
  }
  return {
+  get error(){return lastError;},
   async setEnabled(value){
    const request=++enableRequest;enabled=value;
    if(!value){stopSpeech();if(ctx)ramp(master,0);onStatus('消音');onMusic(null);return false;}
-   try{if(!await unlock()){if(request===enableRequest)enabled=false;return false;}}catch{if(request===enableRequest){enabled=false;onStatus('音声を開始できません。SOUND ONで再試行できます');}return false;}
+   try{if(!await unlock()){if(request===enableRequest)enabled=false;return false;}}catch{if(request===enableRequest){enabled=false;lastError=ctx?.state!=='running'?'音声の開始許可が必要です。画面のSound ONをクリックしてください':'音源一覧を取得できません。SOUND ONで再試行してください';onStatus(lastError);}return false;}
    if(request!==enableRequest||!enabled)return false;
    ramp(master,.8);if(!switchMusic(mode)&&music)onMusic(manifest[music.name].label);if(!wind)wind=source('wind',windBus,1,true);
    if(paused)ctx.suspend().catch(()=>{});else play('ui');return true;
