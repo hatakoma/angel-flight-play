@@ -2,6 +2,7 @@ import * as THREE from '../vendor/three.module.js';
 import {readQuestInput,createQuestEdges} from './vr-input.js';
 import {createVRNotice} from './vr-notice.js';
 import {createVRCombatSignals} from './vr-combat.js';
+import {createViewRecovery} from './vr-comfort.js';
 
 // A separate XR camera keeps headset tracking out of desktop chase-camera logic.
 export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onAction,onPause,onEnd}){
@@ -9,11 +10,11 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  rig.scale.setScalar(3);rig.add(view);scene.add(rig);
  const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=256;
  const ctx=canvas.getContext('2d'),texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.minFilter=THREE.LinearFilter;texture.generateMipmaps=false;
- // A shallow curved tabletop below the flight view, not a front-facing window.
+ // A translucent curved warning strip just above the horizon (about 3–9 degrees).
  const positions=[],uvs=[],indices=[],segments=48;
  for(let row=0;row<2;row++)for(let i=0;i<=segments;i++){
-  const angle=(i/segments-.5)*1.2,radius=row?1.8:2.45;
-  positions.push(Math.sin(angle)*radius,-1.02+(radius-1.8)*.18,-Math.cos(angle)*radius);
+  const angle=(i/segments-.5)*1.2,radius=2.45;
+  positions.push(Math.sin(angle)*radius,.38-row*.26,-Math.cos(angle)*radius);
   uvs.push(i/segments,1-row);
  }
  for(let i=0;i<segments;i++){const a=i,b=i+1,c=i+segments+1,d=c+1;indices.push(a,c,b,b,c,d);}
@@ -22,11 +23,15 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  hud.name='vr-warning-table';hud.visible=false;hud.renderOrder=10000;hud.frustumCulled=false;view.add(hud);rig.visible=false;
  const combatSignals=createVRCombatSignals(scene,view);
  const notice=createVRNotice();let lastNotice='';
- const veilCanvas=document.createElement('canvas');veilCanvas.width=veilCanvas.height=128;const vc=veilCanvas.getContext('2d'),grad=vc.createRadialGradient(64,64,24,64,64,64);grad.addColorStop(0,'#0000');grad.addColorStop(.65,'#0002');grad.addColorStop(1,'#000e');vc.fillStyle=grad;vc.fillRect(0,0,128,128);
+ const veilCanvas=document.createElement('canvas');veilCanvas.width=veilCanvas.height=128;const vc=veilCanvas.getContext('2d'),grad=vc.createRadialGradient(64,64,14,64,64,64);grad.addColorStop(0,'#0000');grad.addColorStop(.4,'#0005');grad.addColorStop(1,'#000e');vc.fillStyle=grad;vc.fillRect(0,0,128,128);
  const veil=new THREE.Mesh(new THREE.PlaneGeometry(7,7),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(veilCanvas),transparent:true,depthWrite:false,depthTest:false,toneMapped:false,opacity:.3}));veil.position.z=-2.8;veil.renderOrder=9999;view.add(veil);
  const button=document.createElement('button');button.id='enter-vr';button.className='secondary';button.textContent='VR対応を確認中…';button.disabled=true;document.getElementById('start').after(button);
- const help=document.createElement('p');help.className='hint vr-help';help.textContent='Quest 2：左スティック 操縦 / 右トリガー 射撃 / 右グリップ 聖槍 / A 出撃・敵切替 / B ターン / X 停止 / Y VR終了';button.after(help);
+ const help=document.createElement('p');help.className='hint vr-help';help.textContent='Quest 2：左スティック 操縦 / 右トリガー 射撃 / 左トリガー・右グリップ 聖槍 / A 出撃・敵切替 / B ターン / X 停止 / Y VR終了';button.after(help);
+ const assistLabel=document.createElement('label'),assist=document.createElement('input');assist.type='checkbox';assist.checked=true;assistLabel.className='vr-help';assistLabel.append(assist,document.createTextNode(' VR：天使ちゃんが視界外ならゆっくり視点補正'));help.after(assistLabel);
  const status=document.createElement('p');status.className='hint';status.setAttribute('role','status');help.after(status);
+ const recovery=createViewRecovery(),anchor=new THREE.Vector3(),followOffset=new THREE.Vector3(),headPrevious=new THREE.Quaternion(),headForward=new THREE.Vector3(),offset=new THREE.Vector3(),goal=new THREE.Vector3();
+ let anchorReady=false,headReady=false,viewYaw=0,previousState=null,previousSpeed=0,fade=0;
+ const transition=new THREE.Mesh(new THREE.PlaneGeometry(8,8),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0,depthTest:false,depthWrite:false}));transition.position.z=-.8;transition.renderOrder=10010;transition.visible=false;view.add(transition);
  const edges=createQuestEdges(),direction=new THREE.Vector3(),local=new THREE.Vector3();
  let session=null,entering=false,lastHud=-1,headOffset=new THREE.Vector3(),needsCenter=true,visibility=new Map();
  renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local-floor');renderer.xr.setFramebufferScaleFactor(.8);renderer.xr.setFoveation(1);
@@ -43,7 +48,7 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
    session=await navigator.xr.requestSession('immersive-vr',{requiredFeatures:['local-floor']});
    session.addEventListener('end',ended,{once:true});
    session.addEventListener('visibilitychange',()=>{if(session?.visibilityState!=='visible'){clear();onPause();}});
-   await renderer.xr.setSession(session);setQuality(true);needsCenter=true;lastHud=-1;clear();onPause();
+   await renderer.xr.setSession(session);setQuality(true);anchorReady=false;headReady=false;recovery.reset();needsCenter=true;lastHud=-1;clear();onPause();
    if(session.supportedFrameRates?.includes(72)&&session.updateTargetFrameRate)await session.updateTargetFrameRate(72).catch(()=>{});
    status.textContent='VR接続中。Aで出撃・再開、Yで終了。';button.textContent='VR接続中';
   }catch(error){const failed=session;if(failed)await failed.end().catch(()=>{});session=null;setQuality(false);entering=false;button.disabled=false;button.textContent='VRで遊ぶ / Quest 2';status.textContent='VRを開始できませんでした。Questブラウザーと権限を確認して再試行してください。';console.warn('XR session failed',error);}
@@ -72,8 +77,8 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
   const signature=JSON.stringify(lines);if(signature===lastNotice)return;lastNotice=signature;
   ctx.clearRect(0,0,1024,256);
   if(lines){
-   ctx.fillStyle='#122b38b3';ctx.fillRect(0,0,1024,256);
-   ctx.strokeStyle='#9ce5ed80';ctx.lineWidth=3;ctx.strokeRect(2,2,1020,252);
+   ctx.fillStyle='#122b3866';ctx.fillRect(0,0,1024,256);
+   ctx.strokeStyle='#9ce5ed55';ctx.lineWidth=3;ctx.strokeRect(2,2,1020,252);
    ctx.textAlign='center';ctx.fillStyle='#e1fff8';ctx.font='bold 46px sans-serif';ctx.fillText(lines[0],512,lines[1]?112:145,940);
    if(lines[1]){ctx.fillStyle='#abdfe5';ctx.font='32px sans-serif';ctx.fillText(lines[1],512,185,940);}
   }
@@ -81,17 +86,41 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  }
  function render(dt,now){
   if(!renderer.xr.isPresenting){renderer.render(scene,camera);return;}
-  const s=getState();camera.getWorldDirection(direction);const yaw=Math.atan2(-direction.x,-direction.z);
-  // No forced pitch, roll, shake or loop rotation of the headset camera.
-  rig.rotation.set(0,yaw,0);rig.position.copy(camera.position);rig.updateMatrixWorld(true);
-  renderer.xr.updateCamera(view);
-  if(needsCenter){headOffset.copy(view.position);needsCenter=false;}
-  const offset=headOffset.clone().multiplyScalar(3).applyQuaternion(rig.quaternion);rig.position.sub(offset);rig.updateMatrixWorld(true);
-  renderer.xr.updateCamera(view);view.updateMatrixWorld(true);
+  const s=getState();camera.getWorldDirection(direction);
+  const player=s.playerPosition,step=Math.min(.05,Math.max(0,dt));
+  const newFlight=s.state==='playing'&&['intro','result','loading'].includes(previousState);
+  if(!anchorReady){
+   viewYaw=Math.atan2(-direction.x,-direction.z);anchor.copy(camera.position);
+   if(player)followOffset.copy(camera.position).sub(player);else followOffset.set(0,5.3,18);
+   followOffset.y=5.3;anchorReady=true;fade=1;recovery.reset();
+  }
+  if(newFlight&&player){anchor.copy(player).add(followOffset);fade=1;recovery.reset();}
+  else if(player&&s.state!=='paused'){
+   goal.copy(player).add(followOffset);
+   anchor.x=THREE.MathUtils.damp(anchor.x,goal.x,6,step);anchor.z=THREE.MathUtils.damp(anchor.z,goal.z,6,step);
+   anchor.y=THREE.MathUtils.damp(anchor.y,goal.y,s.maneuver?.turning ? .9 : 2,step);
+   // Limit chase lag so boosting toward the observer cannot carry the avatar through the camera.
+   local.copy(anchor).sub(goal);const lag=Math.hypot(local.x,local.z);if(lag>3){anchor.x=goal.x+local.x/lag*3;anchor.z=goal.z+local.z/lag*3;}anchor.y=THREE.MathUtils.clamp(anchor.y,goal.y-8,goal.y+8);
+  }
+  previousState=s.state;
+  // World orientation stays stable through banks and loops. Never smooth the physical head pose.
+  rig.rotation.set(0,viewYaw,0);rig.position.copy(anchor);rig.updateMatrixWorld(true);renderer.xr.updateCamera(view);
+  if(needsCenter){
+   headOffset.copy(view.position);needsCenter=false;recovery.reset();fade=1;
+   if(player){headForward.set(0,0,-1).applyQuaternion(view.quaternion);const headYaw=Math.atan2(-headForward.x,-headForward.z);local.copy(player).sub(anchor);viewYaw=Math.atan2(-local.x,-local.z)-headYaw;rig.rotation.y=viewYaw;}
+  }
+  offset.copy(headOffset).multiplyScalar(3).applyQuaternion(rig.quaternion);rig.position.copy(anchor).sub(offset);rig.updateMatrixWorld(true);renderer.xr.updateCamera(view);view.updateMatrixWorld(true);
+  const headSpeed=headReady&&step>0?view.quaternion.angleTo(headPrevious)/step:0;headPrevious.copy(view.quaternion);headReady=true;
+  let correction={active:false,yaw:0,height:0};
+  if(player){local.copy(player);view.worldToLocal(local);correction=recovery.update(step,{x:local.x,y:local.y,z:local.z,headSpeed,enabled:assist.checked&&s.state==='playing'});viewYaw+=correction.yaw;followOffset.y=THREE.MathUtils.clamp(followOffset.y+correction.height,-18,18);}
+  if(correction.yaw){rig.rotation.y=viewYaw;offset.copy(headOffset).multiplyScalar(3).applyQuaternion(rig.quaternion);rig.position.copy(anchor).sub(offset);rig.updateMatrixWorld(true);renderer.xr.updateCamera(view);view.updateMatrixWorld(true);}
   combatSignals.update(s);
-  veil.material.opacity=(s.maneuver?.turning||s.maneuver?.dashing)? .9:.3;
+  const moving=s.state==='playing',speed=s.speed||0,acceleration=step>0?Math.abs(speed-previousSpeed)/step:0;previousSpeed=speed;
+  const intense=s.maneuver?.turning||s.dashing||s.rushing||correction.active||s.steering||speed>80||acceleration>30;
+  veil.material.opacity=THREE.MathUtils.damp(veil.material.opacity,intense ? .98 : moving ? .52 : .12,8,step);
+  transition.visible=fade>.01;transition.material.opacity=fade;fade=Math.max(0,fade-step*2.5);
   if(now-lastHud>=100||lastHud<0){quality();drawHud(s);lastHud=now;}
   renderer.render(scene,view);
  }
- return {input,render,get active(){return renderer.xr.isPresenting;}};
+ return {input,render,get gazeTarget(){const e=combatSignals.gazeTarget;return e?.hp>0?e:null;},get active(){return renderer.xr.isPresenting;}};
 }
