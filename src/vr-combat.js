@@ -1,10 +1,11 @@
 import * as THREE from '../vendor/three.module.js';
 import {selectGazeTarget} from './vr-comfort.js';
+import {createMistTexture,createChargeMist} from './vr-aura.js';
 import {guidanceEmphasis} from './hud-projection.js';
 
 export function createVRCombatSignals(scene,view){
  const world=new THREE.Group(),directions=new THREE.Group();world.name='vr-combat-signals';directions.name='vr-direction-signals';scene.add(world);view.add(directions);world.visible=directions.visible=false;
- const ringGeometry=new THREE.TorusGeometry(1,.035,5,32),shellGeometry=new THREE.SphereGeometry(1,12,8);
+ const mistTexture=createMistTexture();
  const chevron=new THREE.Shape();chevron.moveTo(-.09,.11);chevron.lineTo(-.035,.14);chevron.lineTo(.105,0);chevron.lineTo(-.035,-.14);chevron.lineTo(-.09,-.11);chevron.lineTo(.02,0);chevron.closePath();
  const arrowGeometry=new THREE.ExtrudeGeometry(chevron,{depth:.035,bevelEnabled:false});
  const records=new Map(),position=new THREE.Vector3(),local=new THREE.Vector3(),inverse=new THREE.Quaternion();
@@ -21,14 +22,11 @@ export function createVRCombatSignals(scene,view){
   mesh.instanceMatrix.needsUpdate=true;return mesh;
  }
  const chains=makeChains('vr-lock-chains',1,grayMaterial),gazeChains=makeChains('vr-gaze-chains',2,whiteMaterial);let gazeTarget=null;
- function remove(e){const r=records.get(e);if(!r)return;r.aura.removeFromParent();r.arrow.removeFromParent();r.red.dispose();r.shell.dispose();r.arrow.material.dispose();records.delete(e);}
+ function remove(e){const r=records.get(e);if(!r)return;r.aura.removeFromParent();r.arrow.removeFromParent();r.mist.dispose();r.arrow.material.dispose();records.delete(e);}
  function make(e){
-  const aura=new THREE.Group();aura.name='vr-charge-aura';world.add(aura);
-  const red=new THREE.MeshBasicMaterial({color:'#ff1838',transparent:true,opacity:.45,depthWrite:false,toneMapped:false});
-  const shell=new THREE.MeshBasicMaterial({color:'#ff1230',transparent:true,opacity:.08,depthWrite:false,side:THREE.BackSide,toneMapped:false});aura.add(new THREE.Mesh(shellGeometry,shell));
-  for(let i=0;i<3;i++){const ring=new THREE.Mesh(ringGeometry,red);ring.rotation.set(i*.85,i*.7,0);aura.add(ring);}
+  const mist=createChargeMist(mistTexture),aura=mist.group;world.add(aura);
   const arrow=new THREE.Mesh(arrowGeometry,new THREE.MeshBasicMaterial({color:'#e5ffff',transparent:true,depthTest:false,depthWrite:false,toneMapped:false}));arrow.name='vr-direction-chevron';arrow.renderOrder=9998;directions.add(arrow);
-  const r={aura,arrow,red,shell,since:null};records.set(e,r);return r;
+  const r={aura,arrow,mist,since:null};records.set(e,r);return r;
  }
  function hide(){world.visible=directions.visible=false;chains.visible=gazeChains.visible=false;gazeTarget=null;for(const e of [...records.keys()])remove(e);}
  function update(s){
@@ -38,7 +36,7 @@ export function createVRCombatSignals(scene,view){
   for(const e of alive){
    const r=records.get(e)||make(e),radius=Math.max(2,e.radius||3.6);e.g.getWorldPosition(local);r.aura.position.copy(local);
    r.aura.visible=e.charge>0;
-   if(r.aura.visible){const pulse=.5+.5*Math.sin(s.elapsed*Math.PI*3);r.red.opacity=.15+pulse*.55;r.shell.opacity=.025+pulse*.11;r.aura.scale.setScalar(radius*(1.15+.12*pulse));r.aura.rotation.y=s.elapsed*.6;}
+   if(r.aura.visible)r.mist.update(s.elapsed,radius);
    local.sub(position).applyQuaternion(inverse);const behind=local.z>=0,offscreen=behind||Math.abs(local.x/-local.z)>.58||Math.abs(local.y/-local.z)>.42;r.arrow.visible=offscreen;
    if(offscreen){r.since??=s.elapsed;const angle=behind?(local.x<0?Math.PI:0):Math.atan2(local.y,local.x),emphasis=guidanceEmphasis(s.elapsed-Math.max(s.lastHit||0,r.since));r.arrow.position.set(Math.cos(angle)*.94,Math.sin(angle)*.94,-2);r.arrow.rotation.z=angle;r.arrow.scale.setScalar(.55*emphasis.scale);r.arrow.material.opacity=emphasis.opacity;r.arrow.material.color.set(e.type==='captain'||e.type==='boss'?'#c18aff':e===s.target?'#ffffff':'#a8e8ed');}
    else r.since=null;
@@ -48,5 +46,5 @@ export function createVRCombatSignals(scene,view){
   if(chains.visible){s.target.g.getWorldPosition(chains.position);chains.scale.setScalar(Math.max(2.8,(s.target.radius||3.6)*1.05));chains.rotation.set(0,0,0);}
   gazeChains.visible=!!gazeTarget;if(gazeTarget){gazeTarget.g.getWorldPosition(gazeChains.position);gazeChains.scale.setScalar(Math.max(3.6,(gazeTarget.radius||3.6)*1.4));}
  }
- return {update,hide,get gazeTarget(){return gazeTarget;},dispose(){hide();world.removeFromParent();directions.removeFromParent();for(const geometry of [ringGeometry,shellGeometry,arrowGeometry,chainGeometry])geometry.dispose();chains.dispose();gazeChains.dispose();grayMaterial.dispose();whiteMaterial.dispose();}};
+ return {update,hide,get gazeTarget(){return gazeTarget;},dispose(){hide();world.removeFromParent();directions.removeFromParent();for(const geometry of [arrowGeometry,chainGeometry])geometry.dispose();chains.dispose();gazeChains.dispose();grayMaterial.dispose();whiteMaterial.dispose();mistTexture.dispose();}};
 }

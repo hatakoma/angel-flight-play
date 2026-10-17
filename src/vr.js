@@ -22,6 +22,9 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  const tableGeometry=new THREE.BufferGeometry();tableGeometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));tableGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));tableGeometry.setIndex(indices);tableGeometry.computeVertexNormals();
  const hud=new THREE.Mesh(tableGeometry,new THREE.MeshBasicMaterial({map:texture,transparent:true,side:THREE.DoubleSide,depthTest:false,depthWrite:false,toneMapped:false}));
  hud.name='vr-warning-table';hud.visible=false;hud.renderOrder=10000;hud.frustumCulled=false;view.add(hud);rig.visible=false;
+ const resultCanvas=document.createElement('canvas');resultCanvas.width=1024;resultCanvas.height=256;
+ const resultCtx=resultCanvas.getContext('2d'),resultTexture=new THREE.CanvasTexture(resultCanvas);resultTexture.colorSpace=THREE.SRGBColorSpace;resultTexture.minFilter=THREE.LinearFilter;resultTexture.generateMipmaps=false;
+ const resultHud=new THREE.Mesh(tableGeometry,hud.material.clone());resultHud.material.map=resultTexture;resultHud.name='vr-result-lower';resultHud.position.y=-1.65;resultHud.visible=false;resultHud.renderOrder=10000;resultHud.frustumCulled=false;view.add(resultHud);
  const combatSignals=createVRCombatSignals(scene,view);
  const notice=createVRNotice();let lastNotice='';
  const veilCanvas=document.createElement('canvas');veilCanvas.width=veilCanvas.height=128;const vc=veilCanvas.getContext('2d'),grad=vc.createRadialGradient(64,64,14,64,64,64);grad.addColorStop(0,'#0000');grad.addColorStop(.4,'#0005');grad.addColorStop(1,'#000e');vc.fillStyle=grad;vc.fillRect(0,0,128,128);
@@ -75,18 +78,28 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  function drawHud(s){
   const q=view.getWorldQuaternion(new THREE.Quaternion()).invert(),p=view.getWorldPosition(new THREE.Vector3());let rear=0;
   for(const e of s.enemies){if(e.hp<=0)continue;local.copy(e.g.position).sub(p).applyQuaternion(q);if(local.z>=0)rear++;}
-  const lines=notice(s,{rear});hud.visible=!!lines;hud.position.y=s.state==='result'?-1.65:0;
-  const signature=JSON.stringify(lines);if(signature===lastNotice)return;lastNotice=signature;
-  ctx.clearRect(0,0,1024,256);
-  if(lines){
-   ctx.fillStyle='#122b3829';ctx.fillRect(0,0,1024,256);
-   ctx.strokeStyle='#9ce5ed33';ctx.lineWidth=3;ctx.strokeRect(2,2,1020,252);
-   ctx.textAlign='center';
-   const visibleLines=lines.filter(Boolean),spacing=visibleLines.length>2?56:73;
-   visibleLines.forEach((line,i)=>{ctx.fillStyle=i===0?'#d3eee6':'#a4c9d0';ctx.font=(i===0?'bold 40':'30')+'px sans-serif';ctx.fillText(line,512,140+(i-(visibleLines.length-1)/2)*spacing,940);});
+  const lines=notice(s,{rear}),result=s.state==='result';hud.visible=!!lines;hud.position.y=0;resultHud.visible=result;
+  const signature=JSON.stringify([result,lines]);if(signature===lastNotice)return;lastNotice=signature;
+  function paint(context,rows,strong){
+   context.clearRect(0,0,1024,256);if(!rows)return;
+   context.fillStyle=strong?'#11152eb8':'#122b3829';context.fillRect(0,0,1024,256);
+   context.strokeStyle=strong?'#e4bf7088':'#9ce5ed33';context.lineWidth=3;context.strokeRect(2,2,1020,252);
+   context.textAlign='center';context.lineJoin='round';
+   const visibleLines=rows.filter(Boolean),spacing=visibleLines.length>2?62:82;
+   visibleLines.forEach((line,i)=>{
+    context.fillStyle=strong?(i===0?'#ffe4a0':'#ffffff'):(i===0?'#d3eee6':'#a4c9d0');context.font=(i===0?'bold 44':'bold 32')+'px sans-serif';
+    const y=140+(i-(visibleLines.length-1)/2)*spacing;
+    if(strong){context.strokeStyle='#070b1c';context.lineWidth=7;context.strokeText(line,512,y,940);}
+    context.fillText(line,512,y,940);
+   });
   }
-  texture.needsUpdate=true;
+  if(result){
+   paint(ctx,[lines[0],`評価 ${s.rank||'—'}`],true);
+   paint(resultCtx,[`撃破 ${s.kills}/${s.total}　時間 ${s.flightTime||'—'}`,`耐久 ${Math.ceil(s.hp/Math.max(1,s.maxHp)*100)}%　命中 ${s.accuracy??0}%`,lines[3]],true);
+  }else{paint(ctx,lines,false);paint(resultCtx,null,false);}
+  texture.needsUpdate=true;resultTexture.needsUpdate=true;
  }
+
  function render(dt,now){
   if(!renderer.xr.isPresenting){renderer.render(scene,camera);return;}
   const s=getState();
