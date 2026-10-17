@@ -35,5 +35,39 @@ export function createSceneryCollision(scene){
   candidates.sort((a,b)=>a.distanceToSquared(origin)-b.distanceToSquared(origin));
   const safe=candidates.find(clear);if(safe)position.copy(safe);return !!safe;
  }
- return {resolve,place};
+ function clearLine(from,to,radius=1){
+  refresh();delta.copy(to).sub(from);const length=delta.length();if(length<1e-6)return true;
+  ray.set(from,delta.divideScalar(length));
+  for(const bounds of roots.values())for(const b of bounds){box.copy(b).expandByScalar(radius);if(box.containsPoint(from)||box.containsPoint(to))return false;if(ray.intersectBox(box,hit)&&hit.distanceTo(from)<length)return false;}
+  return true;
+ }
+ function free(p,radius){for(const bounds of roots.values())for(const b of bounds)if(box.copy(b).expandByScalar(radius).containsPoint(p))return false;return true;}
+ function visiblePosition(observer,desired,radius){
+  refresh();if(free(desired,radius)&&clearLine(observer,desired))return desired.clone();
+  const distance=Math.max(60,Math.hypot(desired.x-observer.x,desired.z-observer.z)),angle=Math.atan2(desired.x-observer.x,desired.z-observer.z);
+  for(const scale of [1,.7,1.25,.45])for(let i=0;i<24;i++){
+   const offset=(i%2?1:-1)*Math.ceil(i/2)*Math.PI/12,a=angle+offset;
+   const p=new THREE.Vector3(observer.x+Math.sin(a)*distance*scale,desired.y,observer.z+Math.cos(a)*distance*scale);
+   if(free(p,radius)&&clearLine(observer,p))return p;
+  }
+  return null;
+ }
+ function sightWaypoint(observer,current,radius){
+  refresh();const goal=visiblePosition(observer,current,radius);if(!goal)return null;
+  if(clearLine(current,goal,radius))return goal;
+  // Small visibility graph around nearby building corners; never route through a wall.
+  const nearby=[...roots.values()].flat().filter(b=>b.min.y-radius<=current.y&&b.max.y+radius>=current.y).sort((a,b)=>a.distanceToPoint(current)-b.distanceToPoint(current)).slice(0,8);
+  const nodes=[current.clone(),goal];
+  for(const b of nearby)for(const x of [b.min.x-radius-1,b.max.x+radius+1])for(const z of [b.min.z-radius-1,b.max.z+radius+1]){const p=new THREE.Vector3(x,current.y,z);if(free(p,radius))nodes.push(p);}
+  const distances=nodes.map(()=>Infinity),parents=nodes.map(()=>-1),visited=new Set();distances[0]=0;
+  for(let step=0;step<nodes.length;step++){
+   let index=-1;for(let i=0;i<nodes.length;i++)if(!visited.has(i)&&(index<0||distances[i]<distances[index]))index=i;
+   if(index<0||!Number.isFinite(distances[index]))break;
+   if(index===1){let next=1;while(parents[next]>0)next=parents[next];return nodes[next].clone();}
+   visited.add(index);
+   for(let j=1;j<nodes.length;j++){if(visited.has(j))continue;const d=distances[index]+nodes[index].distanceTo(nodes[j]);if(d<distances[j]&&clearLine(nodes[index],nodes[j],radius)){distances[j]=d;parents[j]=index;}}
+  }
+  return null;
+ }
+ return {resolve,place,clearLine,visiblePosition,sightWaypoint};
 }

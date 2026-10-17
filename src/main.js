@@ -89,11 +89,15 @@ function keepInAirspace(position){
  return position;
 }
 function enemySceneryRadius(e){return Math.max(e.radius||3,TYPES[e.type].height*.6)+4;}
+function placeVisibleEnemy(e){
+ const radius=enemySceneryRadius(e);sceneryCollision.place(e.g.position,radius);
+ const visible=sceneryCollision.visiblePosition(player.g.position,e.g.position,radius);if(visible)e.g.position.copy(visible);
+}
 function spawnWave(){
  clearEnemies();nextWaveAt=0;wave++;target=null;manualTarget=null;
  const entries=wave<=WAVE_COUNT?formation(wave):[{type:stage.boss.enemyId,slot:0,...stage.boss}];
  const dir=heading(),right=new THREE.Vector3().crossVectors(dir,up).normalize();
- for(const entry of entries){const e=devil(entry.slot),spec=TYPES[entry.type];Object.assign(e,entry,{hp:spec.hp,maxHp:spec.hp,radius:spec.radius,fire:spec.fireInterval+entry.slot*.8});e.g.scale.setScalar(entry.type==='boss'?4:entry.type==='captain'?1.7:1);e.g.position.copy(player.g.position).addScaledVector(dir,stage.spawnDistance+entry.z).addScaledVector(right,entry.x);e.g.position.y=clamp(player.g.position.y+entry.y,30,230);e.marker.querySelector('span').textContent=entry.type==='boss'?'ARCHDEMON':entry.type==='captain'?'LEADER / 中悪魔':`IMP ${entry.slot}`;e.marker.classList.toggle('leader',entry.type!=='imp');enemies.push(e);expansion?.attachEnemy(e);if(renderer.xr.isPresenting)sceneryCollision.place(e.g.position,enemySceneryRadius(e));}
+ for(const entry of entries){const e=devil(entry.slot),spec=TYPES[entry.type];Object.assign(e,entry,{hp:spec.hp,maxHp:spec.hp,radius:spec.radius,fire:spec.fireInterval+entry.slot*.8});e.g.scale.setScalar(entry.type==='boss'?4:entry.type==='captain'?1.7:1);e.g.position.copy(player.g.position).addScaledVector(dir,stage.spawnDistance+entry.z).addScaledVector(right,entry.x);e.g.position.y=clamp(player.g.position.y+entry.y,30,230);e.marker.querySelector('span').textContent=entry.type==='boss'?'ARCHDEMON':entry.type==='captain'?'LEADER / 中悪魔':`IMP ${entry.slot}`;e.marker.classList.toggle('leader',entry.type!=='imp');enemies.push(e);expansion?.attachEnemy(e);if(renderer.xr.isPresenting)placeVisibleEnemy(e);}
  // Each encounter owns an airspace centered on its actual spawn positions.
  airspaceCenter.set(0,0,0);for(const e of enemies)airspaceCenter.add(e.g.position);airspaceCenter.divideScalar(enemies.length);
  if(wave>WAVE_COUNT){gameAudio.music(stage.music.boss);gameAudio.play('boss-arrival');gameAudio.speak('voice-boss',{priority:2});bossTime=0;bossForward.copy(dir);effects?.burst(enemies[0].g.position,'demon',70,2);report('大悪魔接近。急降下と横薙ぎを回避して、魔力収束中に集中攻撃！');}else{report(`第${wave}編隊：${gameData.formations.find(f=>f.id===stage.waves[wave-1]).label}。全撃破で次の編隊へ。`);}
@@ -101,7 +105,7 @@ function spawnWave(){
  $('wave').textContent=wave<=WAVE_COUNT?`WAVE ${wave} / ${WAVE_COUNT}`:'FINAL / ARCHDEMON';$('boss-hud').classList.toggle('hidden',wave<=WAVE_COUNT);
 }
 let expansion=null;
-loadExpansion(scene,gradient).then(assets=>{expansion=assets;enemies.filter(e=>e.hp>0).forEach(e=>{assets.attachEnemy(e);if(renderer.xr.isPresenting)sceneryCollision.place(e.g.position,enemySceneryRadius(e));});}).catch(e=>console.error('Expansion asset loading failed',e));
+loadExpansion(scene,gradient).then(assets=>{expansion=assets;enemies.filter(e=>e.hp>0).forEach(e=>{assets.attachEnemy(e);if(renderer.xr.isPresenting)placeVisibleEnemy(e);});}).catch(e=>console.error('Expansion asset loading failed',e));
 let captainShake=0,hitStop=0;
 let vrInput={turn:0,climb:0};
 let lastEnemyHitAt=0,rearCueSince=null;
@@ -289,7 +293,15 @@ for(const e of enemies){
   if(renderer.xr.isPresenting)e.g.position.lerp(keepInAirspace(candidate),1-Math.exp(-dt*2));else e.g.position.copy(keepInAirspace(candidate));
  }
  if(e.type==='boss'&&renderer.xr.isPresenting){const desired=e.g.position.clone(),delta=desired.sub(previous);delta.divideScalar(Math.max(dt,.001)).clampLength(0,100);e.vrVelocity??=new THREE.Vector3();e.vrVelocity.lerp(delta,1-Math.exp(-dt*5));e.g.position.copy(previous).addScaledVector(e.vrVelocity,dt);const desiredRotation=e.g.quaternion.clone();e.g.quaternion.copy(previousRotation).slerp(desiredRotation,1-Math.exp(-dt*3));}
- if(renderer.xr.isPresenting){sceneryCollision.place(previous,enemySceneryRadius(e));sceneryCollision.resolve(previous,e.g.position,enemySceneryRadius(e));}
+ if(renderer.xr.isPresenting){
+  const radius=enemySceneryRadius(e);sceneryCollision.place(previous,radius);
+  if(!sceneryCollision.clearLine(player.g.position,e.g.position)){
+   if(elapsed>=(e.sightCheckAt||0)||(e.sightWaypoint&&previous.distanceTo(e.sightWaypoint)<3)){e.sightWaypoint=sceneryCollision.sightWaypoint(player.g.position,previous,radius);e.sightCheckAt=elapsed+.8;}
+   e.g.position.copy(previous);
+   if(e.sightWaypoint){const move=e.sightWaypoint.clone().sub(previous).clampLength(0,(e.type==='boss'?80:55)*dt);e.g.position.add(move);}
+  }else e.sightWaypoint=null;
+  sceneryCollision.resolve(previous,e.g.position,radius);
+ }
  if(e.type==='boss'){$('boss-name').textContent=`大悪魔 / ${e.charge>0?'魔力収束':e.stagger>0?'怯み':bossOffset(bossTime).mode}`;$('boss-health').style.width=(e.hp/e.maxHp*100)+'%';$('boss-hp').textContent=Number(e.hp.toFixed(1))+' / '+e.maxHp;}
  e.velocity=e.g.position.clone().sub(previous).divideScalar(Math.max(dt,.001));
  const wasCharging=e.charge>0;updateEnemyCombat(e,dt,e.g.position.distanceTo(player.g.position),pattern=>hostileVolley(e,pattern));if(!wasCharging&&e.charge>0)enemySound('charge',e);
