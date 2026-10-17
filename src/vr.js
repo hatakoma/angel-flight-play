@@ -14,8 +14,8 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  // A translucent curved warning strip just above the horizon (about 3–9 degrees).
  const positions=[],uvs=[],indices=[],segments=48;
  for(let row=0;row<2;row++)for(let i=0;i<=segments;i++){
-  const angle=(i/segments-.5)*1.2,radius=2.45;
-  positions.push(Math.sin(angle)*radius,.38-row*.26,-Math.cos(angle)*radius);
+  const angle=(i/segments-.5)*1.2,radius=3.8;
+  positions.push(Math.sin(angle)*radius,(.38-row*.26)*(3.8/2.45),-Math.cos(angle)*radius);
   uvs.push(i/segments,1-row);
  }
  for(let i=0;i<segments;i++){const a=i,b=i+1,c=i+segments+1,d=c+1;indices.push(a,c,b,b,c,d);}
@@ -75,14 +75,15 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  function drawHud(s){
   const q=view.getWorldQuaternion(new THREE.Quaternion()).invert(),p=view.getWorldPosition(new THREE.Vector3());let rear=0;
   for(const e of s.enemies){if(e.hp<=0)continue;local.copy(e.g.position).sub(p).applyQuaternion(q);if(local.z>=0)rear++;}
-  const lines=notice(s,{rear});hud.visible=!!lines;
+  const lines=notice(s,{rear});hud.visible=!!lines;hud.position.y=s.state==='result'?-1.65:0;
   const signature=JSON.stringify(lines);if(signature===lastNotice)return;lastNotice=signature;
   ctx.clearRect(0,0,1024,256);
   if(lines){
-   ctx.fillStyle='#122b3866';ctx.fillRect(0,0,1024,256);
-   ctx.strokeStyle='#9ce5ed55';ctx.lineWidth=3;ctx.strokeRect(2,2,1020,252);
-   ctx.textAlign='center';ctx.fillStyle='#e1fff8';ctx.font='bold 46px sans-serif';ctx.fillText(lines[0],512,lines[1]?112:145,940);
-   if(lines[1]){ctx.fillStyle='#abdfe5';ctx.font='32px sans-serif';ctx.fillText(lines[1],512,185,940);}
+   ctx.fillStyle='#122b3829';ctx.fillRect(0,0,1024,256);
+   ctx.strokeStyle='#9ce5ed33';ctx.lineWidth=3;ctx.strokeRect(2,2,1020,252);
+   ctx.textAlign='center';
+   const visibleLines=lines.filter(Boolean),spacing=visibleLines.length>2?56:73;
+   visibleLines.forEach((line,i)=>{ctx.fillStyle=i===0?'#d3eee6':'#a4c9d0';ctx.font=(i===0?'bold 40':'30')+'px sans-serif';ctx.fillText(line,512,140+(i-(visibleLines.length-1)/2)*spacing,940);});
   }
   texture.needsUpdate=true;
  }

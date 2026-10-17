@@ -6,7 +6,7 @@ export function createVRNotice(){
   if(s.state!=='playing'){previousHp=null;damageUntil=-1;
    if(s.state==='loading')return ['準備中…',''];
    if(s.state==='paused')return ['一時停止','A / X：再開　 Y：VR終了'];
-   if(s.state==='result')return [s.result||'フライト終了','A：もう一度　 Y：VR終了'];
+   if(s.state==='result')return [s.result||'フライト終了',`評価 ${s.rank||'—'}　撃破 ${s.kills}/${s.total}　時間 ${s.flightTime||'—'}`,`耐久 ${Math.ceil(s.hp/Math.max(1,s.maxHp)*100)}%　命中 ${s.accuracy??0}%`,'A：もう一度　 Y：VR終了'];
    if(s.state==='victory')return ['大悪魔 撃破',''];
    return ['A：出撃する','Y：VR終了'];
   }

@@ -40,7 +40,7 @@ export function createVRCombatSignals(scene,view){
    r.aura.visible=e.charge>0;
    if(r.aura.visible){const pulse=.5+.5*Math.sin(s.elapsed*Math.PI*3);r.red.opacity=.15+pulse*.55;r.shell.opacity=.025+pulse*.11;r.aura.scale.setScalar(radius*(1.15+.12*pulse));r.aura.rotation.y=s.elapsed*.6;}
    local.sub(position).applyQuaternion(inverse);const behind=local.z>=0,offscreen=behind||Math.abs(local.x/-local.z)>.58||Math.abs(local.y/-local.z)>.42;r.arrow.visible=offscreen;
-   if(offscreen){r.since??=s.elapsed;const angle=behind?(local.x<0?Math.PI:0):Math.atan2(local.y,local.x),emphasis=guidanceEmphasis(s.elapsed-Math.max(s.lastHit||0,r.since));r.arrow.position.set(Math.cos(angle)*.94,Math.sin(angle)*.94,-2);r.arrow.rotation.z=angle;r.arrow.scale.setScalar(.55*emphasis.scale);r.arrow.material.opacity=emphasis.opacity;r.arrow.material.color.set(e===s.target?'#ffffff':'#a8e8ed');}
+   if(offscreen){r.since??=s.elapsed;const angle=behind?(local.x<0?Math.PI:0):Math.atan2(local.y,local.x),emphasis=guidanceEmphasis(s.elapsed-Math.max(s.lastHit||0,r.since));r.arrow.position.set(Math.cos(angle)*.94,Math.sin(angle)*.94,-2);r.arrow.rotation.z=angle;r.arrow.scale.setScalar(.55*emphasis.scale);r.arrow.material.opacity=emphasis.opacity;r.arrow.material.color.set(e.type==='captain'||e.type==='boss'?'#c18aff':e===s.target?'#ffffff':'#a8e8ed');}
    else r.since=null;
   }
   gazeTarget=selectGazeTarget([...alive],view,gazeTarget);

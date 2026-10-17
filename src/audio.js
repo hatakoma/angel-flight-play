@@ -5,6 +5,7 @@ export function audioDeadline(promise,ms){
 }
 export function createGameAudio({onStatus=()=>{},onMusic=()=>{},loadTimeoutMs=45000,resumeTimeoutMs=8000}={}){
  let ctx,master,musicBus,sfxBus,voiceBus,windBus,wind,loading,enabled=false,paused=false;
+ const activeSources=new Set();
  let enableRequest=0,lastError='';const pending=new Map();
  let mode='title',music=null,manifest={},buffers=new Map(),voices=new Set(),last=new Map();
  let wingClock=0,warningClock=0,previousCd=0,wasTurning=false;
@@ -24,7 +25,8 @@ export function createGameAudio({onStatus=()=>{},onMusic=()=>{},loadTimeoutMs=45
   if(!buffers.has(name))return null;
   const src=ctx.createBufferSource(),gain=ctx.createGain();src.buffer=buffers.get(name);src.loop=loop;gain.gain.value=level;src.connect(gain);gain.connect(bus);
   const voice={src,gain,stop(){try{src.stop();}catch{}}};
-  src.onended=()=>{src.disconnect();gain.disconnect();voices.delete(voice);};src.start();return voice;
+  activeSources.add(voice);
+  src.onended=()=>{activeSources.delete(voice);src.disconnect();gain.disconnect();voices.delete(voice);};src.start();return voice;
  }
  async function unlock(){
   if(!ctx){
@@ -109,6 +111,12 @@ export function createGameAudio({onStatus=()=>{},onMusic=()=>{},loadTimeoutMs=45
   setVolume(bus,value){if(!(bus in volumes))return;volumes[bus]=Math.max(0,Math.min(1,Number(value)||0));if(ctx)ramp(bus==='music'?musicBus:bus==='voice'?voiceBus:sfxBus,volumes[bus]);},
   setPaused(value){paused=value;if(!ctx)return;if(value)ctx.suspend().catch(()=>{});else if(enabled)ctx.resume().catch(()=>{});},
   music:switchMusic,play,speak,
+  stopAll(){
+   ++enableRequest;enabled=false;stopSpeech();
+   for(const v of activeSources)v.stop();activeSources.clear();voices.clear();music=null;wind=null;last.clear();
+   if(ctx){master.gain.cancelScheduledValues(ctx.currentTime);master.gain.setValueAtTime(0,ctx.currentTime);ctx.suspend().catch(()=>{});}
+   onMusic(null);
+  },
   reset(){stopSpeech();speechLast.clear();for(const v of voices)v.stop();voices.clear();last.clear();wingClock=warningClock=0;previousCd=0;wasTurning=false;},
   update(dt,{flying=false,speed=52,hp=100,time=180,spearCd=0,turning=false}={}){
    if(!ctx||!enabled||paused)return;
