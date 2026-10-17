@@ -6,7 +6,7 @@ import {createViewRecovery} from './vr-comfort.js';
 import {flightViewQuaternion,flightTravelDirection,createFlightRotationSmoother} from './vr-flight.js';
 
 // A separate XR camera keeps headset tracking out of desktop chase-camera logic.
-export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onAction,onPause,onEnd}){
+export function createQuestVR({renderer,scene,camera,clouds,resolveScenery=()=>false,getState,onInput,onAction,onPause,onEnd}){
  const rig=new THREE.Group(),view=new THREE.PerspectiveCamera(70,1,.15,5000);
  rig.scale.setScalar(3);rig.add(view);scene.add(rig);
  const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=256;
@@ -25,6 +25,9 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  const resultCanvas=document.createElement('canvas');resultCanvas.width=1024;resultCanvas.height=256;
  const resultCtx=resultCanvas.getContext('2d'),resultTexture=new THREE.CanvasTexture(resultCanvas);resultTexture.colorSpace=THREE.SRGBColorSpace;resultTexture.minFilter=THREE.LinearFilter;resultTexture.generateMipmaps=false;
  const resultHud=new THREE.Mesh(tableGeometry,hud.material.clone());resultHud.material.map=resultTexture;resultHud.name='vr-result-lower';resultHud.position.y=-1.65;resultHud.visible=false;resultHud.renderOrder=10000;resultHud.frustumCulled=false;view.add(resultHud);
+ // Menu curtains cover the upper/lower field while leaving the central scene open.
+ const curtains=new THREE.Group();curtains.name='vr-menu-curtains';curtains.visible=false;view.add(curtains);
+ for(const sign of [1,-1]){const panel=new THREE.Mesh(new THREE.PlaneGeometry(120,60),new THREE.MeshBasicMaterial({color:0x11152e,transparent:true,opacity:.72,depthTest:false,depthWrite:false,toneMapped:false}));panel.position.set(0,sign>0?30.95:-31.9,-8.3);panel.renderOrder=9999.5;curtains.add(panel);}
  const combatSignals=createVRCombatSignals(scene,view);
  const notice=createVRNotice();let lastNotice='';
  const veilCanvas=document.createElement('canvas');veilCanvas.width=veilCanvas.height=128;const vc=veilCanvas.getContext('2d'),grad=vc.createRadialGradient(64,64,14,64,64,64);grad.addColorStop(0,'#0000');grad.addColorStop(.4,'#0005');grad.addColorStop(1,'#000e');vc.fillStyle=grad;vc.fillRect(0,0,128,128);
@@ -78,11 +81,11 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
  function drawHud(s){
   const q=view.getWorldQuaternion(new THREE.Quaternion()).invert(),p=view.getWorldPosition(new THREE.Vector3());let rear=0;
   for(const e of s.enemies){if(e.hp<=0)continue;local.copy(e.g.position).sub(p).applyQuaternion(q);if(local.z>=0)rear++;}
-  const lines=notice(s,{rear}),result=s.state==='result';hud.visible=!!lines;hud.position.y=0;resultHud.visible=result;
-  const signature=JSON.stringify([result,lines]);if(signature===lastNotice)return;lastNotice=signature;
+  const lines=notice(s,{rear}),result=s.state==='result',menu=result||s.state==='intro'||s.state==='loading';hud.visible=!!lines;hud.position.y=menu?.75:0;hud.scale.setScalar(menu?2:1);resultHud.scale.setScalar(2);resultHud.position.y=-3.3;resultHud.visible=menu;curtains.visible=menu;
+  const signature=JSON.stringify([result,menu,lines]);if(signature===lastNotice)return;lastNotice=signature;
   function paint(context,rows,strong){
    context.clearRect(0,0,1024,256);if(!rows)return;
-   context.fillStyle=strong?'#11152eb8':'#122b3829';context.fillRect(0,0,1024,256);
+   context.fillStyle=strong?'#11152e00':'#122b3829';context.fillRect(0,0,1024,256);
    context.strokeStyle=strong?'#e4bf7088':'#9ce5ed33';context.lineWidth=3;context.strokeRect(2,2,1020,252);
    context.textAlign='center';context.lineJoin='round';
    const visibleLines=rows.filter(Boolean),spacing=visibleLines.length>2?62:82;
@@ -96,7 +99,8 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
   if(result){
    paint(ctx,[lines[0],`評価 ${s.rank||'—'}`],true);
    paint(resultCtx,[`撃破 ${s.kills}/${s.total}　時間 ${s.flightTime||'—'}`,`耐久 ${Math.ceil(s.hp/Math.max(1,s.maxHp)*100)}%　命中 ${s.accuracy??0}%`,lines[3]],true);
-  }else{paint(ctx,lines,false);paint(resultCtx,null,false);}
+  }else if(menu){paint(ctx,['ANGEL FLIGHT','天使ちゃん — 出撃準備'],true);paint(resultCtx,[lines[0],'右トリガー：射撃　左トリガー：聖槍','A：出撃　Y：VR終了'],true);}
+  else{paint(ctx,lines,false);paint(resultCtx,null,false);}
   texture.needsUpdate=true;resultTexture.needsUpdate=true;
  }
 
@@ -142,6 +146,10 @@ export function createQuestVR({renderer,scene,camera,clouds,getState,onInput,onA
   let correction={active:false,yaw:0,height:0};
   if(player){local.copy(player);view.worldToLocal(local);correction=recovery.update(step,{x:local.x,y:local.y,z:local.z,headSpeed,enabled:assist.checked&&s.state==='playing'&&!s.maneuver?.turning&&!s.steering});viewYaw+=correction.yaw;followOffset.y=THREE.MathUtils.clamp(followOffset.y+correction.height,-18,18);}
   // Apply recovery through the same rotation filter on the next frame.
+  // Resolve the actual tracked head position too, including physical leaning.
+  if(player){const head=view.getWorldPosition(new THREE.Vector3()),safe=head.clone();
+   if(resolveScenery(player,safe,1.2)){rig.position.add(safe.sub(head));rig.updateMatrixWorld(true);renderer.xr.updateCamera(view);view.updateMatrixWorld(true);}
+  }
   combatSignals.update(s);
   const moving=s.state==='playing',speed=s.speed||0,acceleration=step>0?Math.abs(speed-previousSpeed)/step:0;previousSpeed=speed;
   const intense=s.maneuver?.turning||s.dashing||s.rushing||correction.active||s.steering||speed>80||acceleration>30;

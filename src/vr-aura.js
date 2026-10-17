@@ -17,7 +17,7 @@ export function createChargeMist(texture){
   const puff=new THREE.Sprite(material);puff.name='vr-charge-mist';group.add(puff);
  }
  return {group,update(time,radius){
-  group.scale.setScalar(radius);
+  group.scale.setScalar(radius*.5);
   group.children.forEach((puff,i)=>{
    const age=(time*(.48+i*.017)+i*.137)%1,angle=i*2.399+time*.45;
    const spread=.25+age*.65,wobble=Math.sin(time*2.1+i)*.13;

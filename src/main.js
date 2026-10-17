@@ -1,3 +1,4 @@
+import {createSceneryCollision} from './scenery-collision.js';
 import {createQuestVR} from './vr.js';
 import {gameData,stage,dataVersion,loadGameData} from './game-data.js';
 import { createDebugViewer } from './debug-viewer.js';
@@ -58,6 +59,7 @@ const clouds=[];
 for(let i=0;i<270;i++){let sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,color:i%3?'#e6d8e5':'#b8b3d3',transparent:true,opacity:.55,depthWrite:false}));sprite.position.set((rand()-.5)*3400,-38+rand()*34,(rand()-.5)*3400);sprite.scale.set(210+rand()*300,65+rand()*95,1);scene.add(sprite);clouds.push(sprite);}
 const floor=mesh(new THREE.PlaneGeometry(12000,12000),new THREE.MeshBasicMaterial({color:'#b9adc9'}),scene,0,-64,0);floor.rotation.x=-Math.PI/2;
 const particles= new THREE.BufferGeometry();let positions=[];for(let i=0;i<600;i++)positions.push((rand()-.5)*1800,rand()*350,(rand()-.5)*1800);particles.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));scene.add(new THREE.Points(particles,new THREE.PointsMaterial({color:'#fff1cc',size:1.1,transparent:true,opacity:.65})));
+const sceneryCollision=createSceneryCollision(scene);
 const atmosphere=createAtmosphere(scene,sun,hemi,floor,clouds),actions=createFlightActions();
 let debris=null;loadDebris(scene,gradient).then(value=>debris=value).catch(error=>console.error("Debris loading failed",error));
 let effects=null,manualTarget=null,victoryTime=null,hurtCooldown=0;
@@ -258,12 +260,13 @@ if(maneuver.turning){
  player.body.quaternion.slerp(pose,1-Math.exp(-dt*18));
  if(maneuver.motion.progress>=1){player.g.rotation.y=yaw;player.body.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(up,-Math.PI));}
 }else{player.g.rotation.set(0,yaw,0);const pose=new THREE.Quaternion().setFromEuler(new THREE.Euler(-pitch-.14,0,turn*.48));player.body.quaternion.slerp(pose,1-Math.exp(-dt*5));}
+if(renderer.xr.isPresenting)sceneryCollision.resolve(playerBefore,player.g.position,3);
 if(manualTarget&&(manualTarget.hp<=0||manualTarget.g.position.distanceTo(player.g.position)>=650))manualTarget=null;
 target=manualTarget;let best=.74;
 if(wave>WAVE_COUNT)bossTime+=dt;
 for(const e of enemies){
  if(e.hp<=0)continue;
- const previous=e.g.position.clone();
+ const previous=e.g.position.clone(),previousRotation=e.g.quaternion.clone();
  if(e.stagger>0||e.charge>0||maneuver.rushing){e.g.lookAt(player.g.position);}else if(e.type==='boss'){
   const facing=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));bossForward.lerp(facing,1-Math.exp(-dt*.65)).normalize();
   e.motionTime=bossTime;const maneuver=bossOffset(bossTime),right=new THREE.Vector3().crossVectors(bossForward,up).normalize();
@@ -282,8 +285,9 @@ for(const e of enemies){
   const away=e.g.position.clone().sub(player.g.position);away.y=0;if(away.lengthSq()<.001)away.copy(bossForward);away.normalize();
   const candidate=player.g.position.clone().addScaledVector(away,170);candidate.y=e.g.position.y;keepInAirspace(candidate);
   if(candidate.distanceTo(player.g.position)<160){away.copy(airspaceCenter).sub(player.g.position);away.y=0;away.normalize();candidate.copy(player.g.position).addScaledVector(away,170);candidate.y=e.g.position.y;}
-  e.g.position.copy(keepInAirspace(candidate));
+  if(renderer.xr.isPresenting)e.g.position.lerp(keepInAirspace(candidate),1-Math.exp(-dt*2));else e.g.position.copy(keepInAirspace(candidate));
  }
+ if(e.type==='boss'&&renderer.xr.isPresenting){const desired=e.g.position.clone(),delta=desired.sub(previous);delta.divideScalar(Math.max(dt,.001)).clampLength(0,100);e.vrVelocity??=new THREE.Vector3();e.vrVelocity.lerp(delta,1-Math.exp(-dt*5));e.g.position.copy(previous).addScaledVector(e.vrVelocity,dt);const desiredRotation=e.g.quaternion.clone();e.g.quaternion.copy(previousRotation).slerp(desiredRotation,1-Math.exp(-dt*3));}
  if(e.type==='boss'){$('boss-name').textContent=`大悪魔 / ${e.charge>0?'魔力収束':e.stagger>0?'怯み':bossOffset(bossTime).mode}`;$('boss-health').style.width=(e.hp/e.maxHp*100)+'%';$('boss-hp').textContent=Number(e.hp.toFixed(1))+' / '+e.maxHp;}
  e.velocity=e.g.position.clone().sub(previous).divideScalar(Math.max(dt,.001));
  const wasCharging=e.charge>0;updateEnemyCombat(e,dt,e.g.position.distanceTo(player.g.position),pattern=>hostileVolley(e,pattern));if(!wasCharging&&e.charge>0)enemySound('charge',e);
@@ -362,7 +366,7 @@ if(state==='intro'){player.g.position.set(0,78+Math.sin(worldTime)*.4,120);playe
  camera.position.lerp(desired,1-Math.exp(-dt*4));
  cameraAim.lerp(player.g.position.clone().addScaledVector(cameraDirection,25).add(new THREE.Vector3(0,4,0)),1-Math.exp(-dt*5));camera.lookAt(cameraAim);
 }$('sky-phase').textContent=atmosphere.update(wave>WAVE_COUNT?bossTime:null,victoryTime,player.g.position,heading());gameAudio.update(dt,{flying:state==='playing',speed,hp,time:stage.timeLimit-elapsed,spearCd:missileCd,turning:!!player.maneuver?.turning});if(state==='playing'&&!vr.active)terrainMap.update(dt,airspaceCenter,player.g.position,yaw);if(captainShake>0&&!vr.active){if(state!=='paused')captainShake=Math.max(0,captainShake-dt);const a=(captainShake/.45)**2*.009;camera.rotateX(Math.sin(worldTime*71)*a);camera.rotateY(Math.sin(worldTime*89+.8)*a);camera.rotateZ(Math.sin(worldTime*57)*a*.45);}vr.render(dt,now);if(!vr.active){markers();radar();}}
-const vr=createQuestVR({renderer,scene,camera,clouds,
+const vr=createQuestVR({renderer,scene,camera,clouds,resolveScenery:sceneryCollision.resolve,
  getState:()=>({state,playerPosition:player.g.position.clone(),facingYaw:yaw,facingPitch:pitch,speed,steering:Math.abs(vrInput.turn)>.1||Math.abs(vrInput.climb)>.1,dashing:actions.dashing,rushing:player.rushing,aim:player.g.position.clone().addScaledVector(heading(),100),hp,maxHp:gameData.player.maxHp,time:stage.timeLimit-elapsed,kills,total:TOTAL_TARGETS,enemies,target,ammo:nattoMagazine.ammo,capacity:gameData.weapons.natto.capacity,spear:clamp(1-missileCd/gameData.weapons.spear.cooldown,0,1),barrier:barrierTime>0?barrierHits:0,elapsed,lastHit:lastEnemyHitAt,maneuver:player.maneuver,result:$('result-title').textContent,rank:$('rank').textContent,flightTime:format(elapsed),accuracy:shots?Math.min(100,Math.round(hits/shots*100)):0,error:$('launch-status').textContent}),
  onInput:input=>{vrInput=input;fire=input.fire;keys.KeyE=input.spear;keys.ShiftLeft=input.boost;},
  onPause:()=>{if(state==='playing')pause();},onEnd:()=>{if(state==='playing')pause();chooseSound(false);gameAudio.stopAll();},
