@@ -87,13 +87,12 @@ export function createQuestVR({renderer,scene,camera,clouds,resolveScenery=()=>f
    context.clearRect(0,0,1024,256);if(!rows)return;
    context.fillStyle=strong?'#11152e00':'#122b3829';context.fillRect(0,0,1024,256);
    context.strokeStyle=strong?'#e4bf7088':'#9ce5ed33';context.lineWidth=3;context.strokeRect(2,2,1020,252);
-   context.textAlign='center';context.lineJoin='round';
-   const visibleLines=rows.filter(Boolean),spacing=visibleLines.length>2?62:82;
+   context.textAlign='center';context.textBaseline='middle';
+   const visibleLines=rows.filter(Boolean),spacing=80;
    visibleLines.forEach((line,i)=>{
     context.fillStyle=strong?(i===0?'#ffe4a0':'#ffffff'):(i===0?'#d3eee6':'#a4c9d0');context.font=(i===0?'bold 44':'bold 32')+'px sans-serif';
-    const y=140+(i-(visibleLines.length-1)/2)*spacing;
-    if(strong){context.strokeStyle='#070b1c';context.lineWidth=7;context.strokeText(line,512,y,940);}
-    context.fillText(line,512,y,940);
+    const y=128+(i-(visibleLines.length-1)/2)*spacing;
+    context.save();context.translate(512,y);context.scale(1,2);context.fillText(line,0,0,940);context.restore();
    });
   }
   if(result){

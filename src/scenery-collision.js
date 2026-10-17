@@ -22,5 +22,18 @@ export function createSceneryCollision(scene){
   for(const bounds of roots.values())for(const b of bounds){box.copy(b).expandByScalar(radius);if(ray.intersectBox(box,hit)){const d=hit.distanceTo(start);if(d<=safe){safe=Math.max(0,d-.03);collided=true;}}}
   to.copy(start).addScaledVector(delta,safe);return collided;
  }
- return {resolve};
+ function place(position,radius=3){
+  refresh();let overlaps=false;for(const bounds of roots.values())for(const b of bounds){box.copy(b).expandByScalar(radius);if(box.containsPoint(position)){overlaps=true;break;}}
+  if(!overlaps)return false;
+  const boxes=[...roots.values()].flat().map(b=>b.clone().expandByScalar(radius)),origin=position.clone();
+  const clear=p=>boxes.every(b=>!b.containsPoint(p));if(clear(origin))return false;
+  // Candidate faces include the outermost bounds, so even overlapping buildings have an exit.
+  const candidates=[];
+  for(const b of boxes)for(const axis of ['x','z'])for(const side of ['min','max']){
+   const p=origin.clone();p[axis]=b[side][axis]+(side==='min'?-.1:.1);candidates.push(p);
+  }
+  candidates.sort((a,b)=>a.distanceToSquared(origin)-b.distanceToSquared(origin));
+  const safe=candidates.find(clear);if(safe)position.copy(safe);return !!safe;
+ }
+ return {resolve,place};
 }
